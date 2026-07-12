@@ -31,7 +31,7 @@ Use the following demo account to explore the platform without setting up your o
 
 | Field    | Value              |
 | :------- | :----------------- |
-|  Email    | `demo@asset.com`   |
+|  Email    | `demo@assetflow.com`   |
 |  Password | `password123`      |
 
 > Sign in at `/login` and you'll be taken straight to the dashboard.
