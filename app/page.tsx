@@ -12,7 +12,7 @@ export default function LandingPage() {
     target: targetRef,
   });
 
-  const x = useTransform(scrollYProgress, [0, 1], ["0%", "-75%"]);
+  const x = useTransform(scrollYProgress, [0, 1], ["0%", "-65%"]);
 
   return (
     <div className="min-h-screen bg-[#fafafa] text-slate-900 relative overflow-clip font-sans">
@@ -102,50 +102,186 @@ export default function LandingPage() {
       </main>
 
       {/* Horizontal Scroll Section */}
-      <section ref={targetRef} className="relative h-[400vh] w-full bg-[#fafafa]">
+      <section ref={targetRef} className="relative h-[300vh] w-full bg-[#fafafa]">
         <div className="sticky top-0 h-screen flex items-center overflow-hidden">
-          <motion.div style={{ x }} className="flex w-[400vw]">
+          <motion.div style={{ x }} className="flex gap-8 px-4 md:px-24 w-max">
             
-            {/* Card 1 */}
-            <div className="w-screen flex items-center justify-center px-4 md:px-12">
-              <div className="w-full max-w-4xl h-[60vh] md:h-[70vh] bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl p-8 md:p-16 flex flex-col justify-center transform transition-transform hover:scale-[1.02]">
-                <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-6 tracking-tight">Asset Registration & Directory</h2>
-                <p className="text-xl md:text-2xl text-slate-500 font-medium max-w-2xl">Track assets through a flexible lifecycle. Instantly see what is Available, Allocated, Reserved, or Under Maintenance.</p>
-                <div className="mt-10 md:mt-12 bg-odoo-50 rounded-3xl border border-odoo-100 flex-1 flex items-center justify-center text-odoo-600">
-                  <Box className="w-16 h-16 md:w-24 md:h-24" />
+            {/* Card 1: Asset Registration */}
+            <div className="w-[85vw] md:w-[800px] h-[500px] shrink-0 bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden flex flex-col md:flex-row group">
+              <div className="p-8 md:p-12 md:w-1/2 flex flex-col justify-center bg-white z-10 relative">
+                <div className="w-12 h-12 rounded-2xl bg-odoo-50 border border-odoo-100 flex items-center justify-center mb-6">
+                  <Box className="w-6 h-6 text-[#714B67]" />
+                </div>
+                <h2 className="text-3xl font-extrabold text-slate-900 mb-4 tracking-tight">Asset Registration & Directory</h2>
+                <p className="text-slate-500 font-medium leading-relaxed">
+                  Track assets through a flexible lifecycle. Instantly see what is Available, Allocated, Reserved, or Under Maintenance.
+                </p>
+                <ul className="mt-8 space-y-3">
+                  <li className="flex items-center gap-3 text-sm font-semibold text-slate-700">
+                    <CheckCircle2 className="w-4 h-4 text-odoo-500" /> Auto-generated Asset Tags
+                  </li>
+                  <li className="flex items-center gap-3 text-sm font-semibold text-slate-700">
+                    <CheckCircle2 className="w-4 h-4 text-odoo-500" /> Full History & Audit Trail
+                  </li>
+                </ul>
+              </div>
+              
+              <div className="hidden md:flex md:w-1/2 bg-slate-50 relative overflow-hidden items-center justify-center p-8 border-l border-slate-100">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-odoo-100 rounded-full blur-3xl opacity-40 transform group-hover:scale-110 transition-transform duration-700" />
+                
+                {/* Mock UI */}
+                <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-sm border border-slate-200 p-6 transform group-hover:-translate-y-2 transition-transform duration-500">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500">AF</div>
+                      <div>
+                        <div className="text-sm font-bold text-slate-900">MacBook Pro M3</div>
+                        <div className="text-xs text-slate-500">AF-0012</div>
+                      </div>
+                    </div>
+                    <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-xs font-bold rounded-full border border-emerald-100">Available</span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-odoo-500 w-3/4 rounded-full" />
+                    </div>
+                    <div className="flex justify-between text-xs font-semibold text-slate-400">
+                      <span>Condition: Excellent</span>
+                      <span>Acquired: 2024</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Card 2 */}
-            <div className="w-screen flex items-center justify-center px-4 md:px-12">
-              <div className="w-full max-w-4xl h-[60vh] md:h-[70vh] bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl p-8 md:p-16 flex flex-col justify-center transform transition-transform hover:scale-[1.02]">
-                <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-6 tracking-tight">Conflict-Free Allocations</h2>
-                <p className="text-xl md:text-2xl text-slate-500 font-medium max-w-2xl">The system actively blocks double-allocation. Attempting to assign an already-held asset prompts a direct Transfer Request.</p>
-                <div className="mt-10 md:mt-12 bg-odoo-50 rounded-3xl border border-odoo-100 flex-1 flex items-center justify-center text-odoo-600">
-                  <ArrowRightLeft className="w-16 h-16 md:w-24 md:h-24" />
+            {/* Card 2: Conflict-Free Allocations */}
+            <div className="w-[85vw] md:w-[800px] h-[500px] shrink-0 bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden flex flex-col md:flex-row group">
+              <div className="p-8 md:p-12 md:w-1/2 flex flex-col justify-center bg-white z-10 relative">
+                <div className="w-12 h-12 rounded-2xl bg-odoo-50 border border-odoo-100 flex items-center justify-center mb-6">
+                  <ArrowRightLeft className="w-6 h-6 text-[#714B67]" />
+                </div>
+                <h2 className="text-3xl font-extrabold text-slate-900 mb-4 tracking-tight">Conflict-Free Allocations</h2>
+                <p className="text-slate-500 font-medium leading-relaxed">
+                  The system actively blocks double-allocation. Attempting to assign an already-held asset prompts a direct Transfer Request.
+                </p>
+                <ul className="mt-8 space-y-3">
+                  <li className="flex items-center gap-3 text-sm font-semibold text-slate-700">
+                    <CheckCircle2 className="w-4 h-4 text-odoo-500" /> Real-time Conflict Blocking
+                  </li>
+                  <li className="flex items-center gap-3 text-sm font-semibold text-slate-700">
+                    <CheckCircle2 className="w-4 h-4 text-odoo-500" /> Hand-off Approvals
+                  </li>
+                </ul>
+              </div>
+              
+              <div className="hidden md:flex md:w-1/2 bg-slate-50 relative overflow-hidden items-center justify-center p-8 border-l border-slate-100">
+                <div className="absolute bottom-0 left-0 w-64 h-64 bg-rose-100 rounded-full blur-3xl opacity-40 transform group-hover:scale-110 transition-transform duration-700" />
+                
+                {/* Mock UI */}
+                <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-sm border border-rose-200 p-6 transform group-hover:-translate-y-2 transition-transform duration-500">
+                  <div className="flex items-center gap-3 mb-4 text-rose-600 bg-rose-50 p-3 rounded-xl">
+                    <ShieldCheck className="w-5 h-5 shrink-0" />
+                    <span className="text-sm font-bold">Allocation Blocked</span>
+                  </div>
+                  <p className="text-sm text-slate-600 mb-4 font-medium">This asset is currently held by <strong>Priya Shah</strong>. You cannot allocate it to another user.</p>
+                  <button className="w-full py-2.5 bg-slate-900 text-white text-sm font-bold rounded-xl shadow-md">
+                    Initiate Transfer Request
+                  </button>
                 </div>
               </div>
             </div>
 
-            {/* Card 3 */}
-            <div className="w-screen flex items-center justify-center px-4 md:px-12">
-              <div className="w-full max-w-4xl h-[60vh] md:h-[70vh] bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl p-8 md:p-16 flex flex-col justify-center transform transition-transform hover:scale-[1.02]">
-                <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-6 tracking-tight">Resource Booking</h2>
-                <p className="text-xl md:text-2xl text-slate-500 font-medium max-w-2xl">Book shared resources like meeting rooms and vehicles by time slot. Strict overlap validation prevents scheduling conflicts.</p>
-                <div className="mt-10 md:mt-12 bg-odoo-50 rounded-3xl border border-odoo-100 flex-1 flex items-center justify-center text-odoo-600">
-                  <CalendarClock className="w-16 h-16 md:w-24 md:h-24" />
+            {/* Card 3: Resource Booking */}
+            <div className="w-[85vw] md:w-[800px] h-[500px] shrink-0 bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden flex flex-col md:flex-row group">
+              <div className="p-8 md:p-12 md:w-1/2 flex flex-col justify-center bg-white z-10 relative">
+                <div className="w-12 h-12 rounded-2xl bg-odoo-50 border border-odoo-100 flex items-center justify-center mb-6">
+                  <CalendarClock className="w-6 h-6 text-[#714B67]" />
+                </div>
+                <h2 className="text-3xl font-extrabold text-slate-900 mb-4 tracking-tight">Shared Resource Booking</h2>
+                <p className="text-slate-500 font-medium leading-relaxed">
+                  Book shared resources like meeting rooms and vehicles by time slot. Strict overlap validation completely prevents scheduling conflicts.
+                </p>
+                <ul className="mt-8 space-y-3">
+                  <li className="flex items-center gap-3 text-sm font-semibold text-slate-700">
+                    <CheckCircle2 className="w-4 h-4 text-odoo-500" /> Smart Overlap Validation
+                  </li>
+                  <li className="flex items-center gap-3 text-sm font-semibold text-slate-700">
+                    <CheckCircle2 className="w-4 h-4 text-odoo-500" /> Automated Reminders
+                  </li>
+                </ul>
+              </div>
+              
+              <div className="hidden md:flex md:w-1/2 bg-slate-50 relative overflow-hidden items-center justify-center p-8 border-l border-slate-100">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-amber-100 rounded-full blur-3xl opacity-40 transform group-hover:scale-125 transition-transform duration-700" />
+                
+                {/* Mock UI */}
+                <div className="relative w-full max-w-sm space-y-3 transform group-hover:-translate-y-2 transition-transform duration-500">
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex items-center justify-between opacity-50 grayscale">
+                    <div className="text-sm font-bold text-slate-900">09:00 - 10:00 AM</div>
+                    <span className="text-xs font-bold text-slate-500">Booked</span>
+                  </div>
+                  <div className="bg-white rounded-xl shadow-lg border-2 border-odoo-500 p-4 flex items-center justify-between relative scale-105 z-10">
+                    <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-1 h-8 bg-odoo-500 rounded-r-md" />
+                    <div className="text-sm font-bold text-odoo-700">10:00 - 11:30 AM</div>
+                    <span className="px-2.5 py-1 bg-odoo-100 text-odoo-700 text-[10px] font-bold rounded-full uppercase tracking-wider">Your Slot</span>
+                  </div>
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex items-center justify-between">
+                    <div className="text-sm font-bold text-slate-900">11:30 - 01:00 PM</div>
+                    <span className="text-xs font-bold text-emerald-500">Available</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Card 4 */}
-            <div className="w-screen flex items-center justify-center px-4 md:px-12">
-              <div className="w-full max-w-4xl h-[60vh] md:h-[70vh] bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl p-8 md:p-16 flex flex-col justify-center transform transition-transform hover:scale-[1.02]">
-                <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-6 tracking-tight">Automated Audits</h2>
-                <p className="text-xl md:text-2xl text-slate-500 font-medium max-w-2xl">Run structured audit cycles with assigned auditors. Automatically generate discrepancy reports for any missing items.</p>
-                <div className="mt-10 md:mt-12 bg-odoo-50 rounded-3xl border border-odoo-100 flex-1 flex items-center justify-center text-odoo-600">
-                  <ShieldCheck className="w-16 h-16 md:w-24 md:h-24" />
+            {/* Card 4: Automated Audits */}
+            <div className="w-[85vw] md:w-[800px] h-[500px] shrink-0 bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden flex flex-col md:flex-row group">
+              <div className="p-8 md:p-12 md:w-1/2 flex flex-col justify-center bg-white z-10 relative">
+                <div className="w-12 h-12 rounded-2xl bg-odoo-50 border border-odoo-100 flex items-center justify-center mb-6">
+                  <ShieldCheck className="w-6 h-6 text-[#714B67]" />
+                </div>
+                <h2 className="text-3xl font-extrabold text-slate-900 mb-4 tracking-tight">Structured Audits</h2>
+                <p className="text-slate-500 font-medium leading-relaxed">
+                  Run scheduled audit cycles with assigned auditors. The system automatically generates discrepancy reports for missing or damaged items.
+                </p>
+                <ul className="mt-8 space-y-3">
+                  <li className="flex items-center gap-3 text-sm font-semibold text-slate-700">
+                    <CheckCircle2 className="w-4 h-4 text-odoo-500" /> Discrepancy Reporting
+                  </li>
+                  <li className="flex items-center gap-3 text-sm font-semibold text-slate-700">
+                    <CheckCircle2 className="w-4 h-4 text-odoo-500" /> Status Auto-updates
+                  </li>
+                </ul>
+              </div>
+              
+              <div className="hidden md:flex md:w-1/2 bg-slate-50 relative overflow-hidden items-center justify-center p-8 border-l border-slate-100">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-odoo-100 rounded-full blur-3xl opacity-40 transform group-hover:-translate-x-8 transition-transform duration-700" />
+                
+                {/* Mock UI */}
+                <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-sm border border-slate-200 p-6 transform group-hover:-translate-y-2 transition-transform duration-500">
+                  <h4 className="text-sm font-bold text-slate-900 mb-4 border-b border-slate-100 pb-3">Q3 HQ Audit Cycle</h4>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center"><CheckCircle2 className="w-4 h-4" /></div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">AF-0012</p>
+                          <p className="text-[10px] text-slate-500">Verified</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center"><Box className="w-4 h-4" /></div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">AF-0145</p>
+                          <p className="text-[10px] text-rose-600 font-semibold">Missing - Flagged</p>
+                        </div>
+                      </div>
+                      <button className="text-[10px] font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded">View</button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
