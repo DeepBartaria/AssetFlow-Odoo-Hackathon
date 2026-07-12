@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🗂️ AssetFlow
+# AssetFlow
 
 ### Enterprise Asset & Resource Management System
 
@@ -25,20 +25,20 @@
 
 ---
 
-## 🚀 Live Demo Credentials
+## Live Demo Credentials
 
 Use the following demo account to explore the platform without setting up your own users:
 
 | Field    | Value              |
 | :------- | :----------------- |
-| 📧 Email    | `demo@asset.com`   |
-| 🔑 Password | `password123`      |
+|  Email    | `demo@asset.com`   |
+|  Password | `password123`      |
 
 > Sign in at `/login` and you'll be taken straight to the dashboard.
 
 ---
 
-## 📑 Table of Contents
+##  Table of Contents
 
 - [Overview](#-overview)
 - [Problem Statement](#-problem-statement)
@@ -54,7 +54,7 @@ Use the following demo account to explore the platform without setting up your o
 
 ---
 
-## 🧭 Overview
+##  Overview
 
 **AssetFlow** enables organizations to efficiently manage the complete lifecycle of physical assets and shared resources through a centralized ERP platform.
 
@@ -64,44 +64,44 @@ Rather than focusing on procurement or accounting, AssetFlow specializes in **as
 
 ---
 
-## ❗ Problem Statement
+##  Problem Statement
 
 Many organizations continue to rely on spreadsheets, paper logs, or disconnected software for asset management. These approaches create several operational challenges:
 
-- 📍 Assets become misplaced or untraceable.
-- 🔁 Double allocation causes scheduling conflicts.
-- 🛠️ Maintenance requests are delayed due to informal communication.
-- 🧾 Audit processes become time-consuming and error-prone.
-- ❓ Asset ownership and responsibility remain unclear.
-- 👁️ Managers lack real-time visibility into organizational resources.
-- 🗄️ Historical asset records are fragmented or unavailable.
+-  Assets become misplaced or untraceable.
+-  Double allocation causes scheduling conflicts.
+-  Maintenance requests are delayed due to informal communication.
+-  Audit processes become time-consuming and error-prone.
+-  Asset ownership and responsibility remain unclear.
+-  Managers lack real-time visibility into organizational resources.
+-  Historical asset records are fragmented or unavailable.
 
 AssetFlow addresses these challenges by providing a centralized ERP platform that standardizes asset operations, automates workflows, and maintains a complete audit trail throughout an asset's lifecycle.
 
 ---
 
-## ✨ Key Features
+##  Key Features
 
 | | Feature |
 | :--: | :--- |
-| 🔄 | Complete asset lifecycle management |
-| 🌐 | Organization-wide asset visibility |
-| 📅 | Shared resource booking with conflict prevention |
-| 🧰 | Structured maintenance workflows |
-| 🏢 | Department-based asset allocation |
-| ✅ | Automated audit cycles |
-| 🔐 | Role-based access control (RBAC) |
-| 📊 | Real-time dashboards and analytics |
-| 📱 | QR-code based asset scanning |
-| 🤖 | **Tara** — built-in AI assistant for reports & queries |
-| 🌗 | Light / dark theme support |
-| 🖥️ | Responsive, animated modern web interface |
+|  | Complete asset lifecycle management |
+|  | Organization-wide asset visibility |
+|  | Shared resource booking with conflict prevention |
+|  | Structured maintenance workflows |
+|  | Department-based asset allocation |
+|  | Automated audit cycles |
+|  | Role-based access control (RBAC) |
+|  | Real-time dashboards and analytics |
+|  | QR-code based asset scanning |
+|  | **Tara** — built-in AI assistant for reports & queries |
+|  | Light / dark theme support |
+|  | Responsive, animated modern web interface |
 
 ---
 
-## 🧩 Core Modules
+## Core Modules
 
-### 1. 🏢 Organization Setup
+### 1.  Organization Setup
 
 Establishes the organizational structure used throughout the system.
 
@@ -109,7 +109,7 @@ Establishes the organizational structure used throughout the system.
 - **Asset Categories** — define standardized classifications (Electronics, Furniture, Vehicles, Laboratory Equipment, Office Equipment, Infrastructure) with configurable metadata fields.
 - **Employee Directory** — a centralized employee database that forms the foundation for authentication and role assignment. Admins can promote employees into roles such as *Asset Manager* or *Department Head*.
 
-### 2. 📦 Asset Registration & Directory
+### 2.  Asset Registration & Directory
 
 A centralized repository containing every organizational asset.
 
@@ -120,7 +120,7 @@ A centralized repository containing every organizational asset.
 
 - **Asset History** — a permanent record of allocations, transfers, maintenance, audits, condition changes, and activity logs.
 
-### 3. 🔁 Asset Allocation & Transfer
+### 3.  Asset Allocation & Transfer
 
 Manages asset ownership while preventing conflicts.
 
@@ -129,7 +129,7 @@ Manages asset ownership while preventing conflicts.
 - **Transfer Workflow** — request creation → department approval → Asset Manager approval → ownership transfer → activity logging.
 - **Asset Return** — captures return condition, damage notes, missing accessories, and timestamp. Assets transition back to **Available** after check-in, and overdue returns trigger automated notifications.
 
-### 4. 📅 Resource Booking
+### 4.  Resource Booking
 
 Supports reservation of shared resources such as meeting rooms, company vehicles, conference halls, training labs, and shared equipment.
 
@@ -137,7 +137,7 @@ Supports reservation of shared resources such as meeting rooms, company vehicles
 - **Booking Validation** — prevents overlapping reservations, double booking, and invalid durations.
 - **Booking Lifecycle** — `Upcoming → Ongoing → Completed → Cancelled`, with automated reminders before scheduled bookings.
 
-### 5. 🛠️ Maintenance Management
+### 5.  Maintenance Management
 
 Provides a structured workflow for asset repairs.
 
@@ -148,7 +148,7 @@ Provides a structured workflow for asset repairs.
 
 - **Automatic Status Updates** — assets move to **Under Maintenance** on approval and back to **Available** on resolution. Every request becomes part of the asset's permanent service history.
 
-### 6. ✅ Asset Audit Management
+### 6.  Asset Audit Management
 
 Enables systematic physical verification of organizational assets.
 
@@ -156,7 +156,7 @@ Enables systematic physical verification of organizational assets.
 - **Physical Verification** — auditors mark each asset as `Verified`, `Missing`, or `Damaged`.
 - **Discrepancy Reports** — auto-generated reports for missing/damaged assets and exceptions. Closing an audit locks the records and updates statuses (e.g. `Missing → Lost`).
 
-### 7. 📊 Dashboards, Reports & Analytics
+### 7.  Dashboards, Reports & Analytics
 
 Real-time operational insights.
 
@@ -166,20 +166,20 @@ Real-time operational insights.
 
 ---
 
-## 🔐 Role-Based Access Control (RBAC)
+##  Role-Based Access Control (RBAC)
 
 AssetFlow implements strict role separation to ensure secure operations.
 
 | Role | Responsibilities |
 | :--- | :--- |
-| 👑 **Administrator** | Manage departments, categories, and employees; assign roles; configure system settings; view organization-wide reports. |
-| 🧑‍💼 **Asset Manager** | Register & allocate assets; approve transfers and maintenance; manage lifecycle; resolve audit discrepancies; generate reports. |
-| 🏬 **Department Head** | View departmental assets; approve internal transfers; monitor inventory; book shared resources; review department reports. |
-| 👤 **Employee** | View assigned assets; request transfers; return assets; book resources; submit maintenance requests; track status. |
+|  **Administrator** | Manage departments, categories, and employees; assign roles; configure system settings; view organization-wide reports. |
+|  **Asset Manager** | Register & allocate assets; approve transfers and maintenance; manage lifecycle; resolve audit discrepancies; generate reports. |
+|  **Department Head** | View departmental assets; approve internal transfers; monitor inventory; book shared resources; review department reports. |
+|  **Employee** | View assigned assets; request transfers; return assets; book resources; submit maintenance requests; track status. |
 
 ---
 
-## 🔄 System Workflow
+##  System Workflow
 
 ```
 Organization Setup
@@ -205,7 +205,7 @@ Reports & Analytics
 
 ---
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 ### Frontend
 ![Next.js](https://img.shields.io/badge/Next.js-000000?style=flat-square&logo=nextdotjs&logoColor=white)
@@ -241,7 +241,7 @@ Reports & Analytics
 
 ---
 
-## ⚙️ Getting Started
+##  Getting Started
 
 ### Prerequisites
 
@@ -286,8 +286,8 @@ Then open [http://localhost:3000](http://localhost:3000) in your browser.
 
 | Field    | Value              |
 | :------- | :----------------- |
-| 📧 Email    | `demo@asset.com`   |
-| 🔑 Password | `password123`      |
+| Email    | `demo@asset.com`   |
+|  Password | `password123`      |
 
 ### Available Scripts
 
@@ -300,7 +300,7 @@ Then open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 AssetFlow-Odoo-Hackathon/
@@ -336,22 +336,22 @@ AssetFlow-Odoo-Hackathon/
 
 ---
 
-## 🔮 Future Enhancements
+## Future Enhancements
 
-- 📷 QR Code & Barcode asset tracking expansion
-- 📡 RFID integration
-- 📱 Native mobile application
-- 🏬 Multi-organization support
-- 🧠 Predictive maintenance using analytics
-- ✉️ Email and SMS notifications
-- 🧾 Advanced approval workflows
-- 📉 Asset depreciation tracking
-- 🔗 REST API integrations
-- 📊 Business Intelligence dashboards
+-  QR Code & Barcode asset tracking expansion
+-  RFID integration
+-  Native mobile application
+-  Multi-organization support
+-  Predictive maintenance using analytics
+-  Email and SMS notifications
+-  Advanced approval workflows
+-  Asset depreciation tracking
+-  REST API integrations
+-  Business Intelligence dashboards
 
 ---
 
-## 📄 License
+##  License
 
 This project was developed as a demonstration of an enterprise-grade Asset & Resource Management System, showcasing scalable ERP architecture, secure role-based workflows, and modern full-stack web development practices. It is intended for **educational, research, and demonstration purposes**.
 
