@@ -8,16 +8,10 @@ import {
   UserPlus, 
   UserCheck, 
   Calendar, 
-  Clock, 
-  CheckCircle2, 
   AlertTriangle, 
   X, 
-  ArrowRight,
   User,
-  Info,
-  MapPin,
-  ClipboardList,
-  RefreshCw
+  ClipboardList
 } from "lucide-react";
 import Sidebar from "../Sidebar";
 
@@ -69,6 +63,24 @@ const DEFAULT_TRANSFERS: TransferRequest[] = [
   }
 ];
 
+interface OrgEmployee {
+  id: number;
+  name: string;
+  email: string;
+  department: string;
+  role: string;
+  status: "Active" | "Inactive";
+}
+
+interface OrgDepartment {
+  id: number;
+  name: string;
+  head: string;
+  headInitials: string;
+  parent: string;
+  status: "Active" | "Inactive";
+}
+
 export default function AllocationTransferScreen() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [transfers, setTransfers] = useState<TransferRequest[]>([]);
@@ -78,10 +90,22 @@ export default function AllocationTransferScreen() {
   // Allocate Form State
   const [selectedAssetTag, setSelectedAssetTag] = useState("");
   const [assigneeName, setAssigneeName] = useState("");
-  const [assigneeDept, setAssigneeDept] = useState("Engineering");
+  const [assigneeDept, setAssigneeDept] = useState("");
   const [returnDate, setReturnDate] = useState("");
   const [allocationConflictError, setAllocationConflictError] = useState<string | null>(null);
   const [conflictingAsset, setConflictingAsset] = useState<Asset | null>(null);
+
+  // Allocate form touch state
+  const [allocateTouched, setAllocateTouched] = useState({
+    assetTag: false,
+    assigneeName: false,
+    assigneeDept: false,
+    returnDate: false
+  });
+
+  // Dynamic dropdown lists from Organization Setup
+  const [employeesList, setEmployeesList] = useState<OrgEmployee[]>([]);
+  const [departmentsList, setDepartmentsList] = useState<OrgDepartment[]>([]);
 
   // Return Form State
   const [returnAssetTag, setReturnAssetTag] = useState("");
@@ -94,8 +118,9 @@ export default function AllocationTransferScreen() {
     const storedAssets = localStorage.getItem("assetflow_assets");
     if (storedAssets) {
       try {
-        setAssets(JSON.parse(storedAssets));
-      } catch (e) {
+        const parsed = JSON.parse(storedAssets);
+        setTimeout(() => setAssets(parsed), 0);
+      } catch {
         // use defaults
       }
     }
@@ -103,14 +128,58 @@ export default function AllocationTransferScreen() {
     const storedTransfers = localStorage.getItem("assetflow_transfers");
     if (storedTransfers) {
       try {
-        setTransfers(JSON.parse(storedTransfers));
-      } catch (e) {
-        setTransfers(DEFAULT_TRANSFERS);
+        const parsed = JSON.parse(storedTransfers);
+        setTimeout(() => setTransfers(parsed), 0);
+      } catch {
+        setTimeout(() => setTransfers(DEFAULT_TRANSFERS), 0);
       }
     } else {
-      setTransfers(DEFAULT_TRANSFERS);
+      setTimeout(() => setTransfers(DEFAULT_TRANSFERS), 0);
       localStorage.setItem("assetflow_transfers", JSON.stringify(DEFAULT_TRANSFERS));
     }
+  }, []);
+
+  // Sync active employees and departments from localStorage
+  useEffect(() => {
+    // Employees
+    const storedEmps = localStorage.getItem("assetflow_employees");
+    let activeEmps: OrgEmployee[] = [];
+    if (storedEmps) {
+      try {
+        const parsed = JSON.parse(storedEmps) as OrgEmployee[];
+        activeEmps = parsed.filter(emp => emp.status === "Active");
+      } catch {
+        // use default
+      }
+    }
+    if (activeEmps.length === 0) {
+      activeEmps = [
+        { id: 1, name: "Ankit Mishra", email: "ankit@example.com", department: "Engineering", role: "Employee", status: "Active" },
+        { id: 2, name: "Priya Shah", email: "priya@example.com", department: "Facilities", role: "Department Head", status: "Active" }
+      ];
+    }
+    const emps = activeEmps;
+    setTimeout(() => setEmployeesList(emps), 0);
+
+    // Departments
+    const storedDepts = localStorage.getItem("assetflow_departments");
+    let activeDepts: OrgDepartment[] = [];
+    if (storedDepts) {
+      try {
+        const parsed = JSON.parse(storedDepts) as OrgDepartment[];
+        activeDepts = parsed.filter(dept => dept.status === "Active");
+      } catch {
+        // use default
+      }
+    }
+    if (activeDepts.length === 0) {
+      activeDepts = [
+        { id: 1, name: "Engineering", head: "Aditi Rao", headInitials: "AR", parent: "—", status: "Active" },
+        { id: 2, name: "Facilities", head: "Rohan Mehta", headInitials: "RM", parent: "—", status: "Active" }
+      ];
+    }
+    const depts = activeDepts;
+    setTimeout(() => setDepartmentsList(depts), 0);
   }, []);
 
   const saveAssets = (updated: Asset[]) => {
@@ -139,9 +208,46 @@ export default function AllocationTransferScreen() {
     return assets.filter(a => a.status === "Allocated" && isOverdue(a));
   }, [assets]);
 
+  // Validation Rules
+  const allocateAssetTagError = useMemo(() => {
+    if (!selectedAssetTag) {
+      return "Asset selection is required.";
+    }
+    return "";
+  }, [selectedAssetTag]);
+
+  const allocateNameError = useMemo(() => {
+    if (!assigneeName) {
+      return "Employee is required.";
+    }
+    return "";
+  }, [assigneeName]);
+
+  const allocateDeptError = useMemo(() => {
+    if (!assigneeDept) {
+      return "Department is required.";
+    }
+    return "";
+  }, [assigneeDept]);
+
+  const allocateReturnDateError = useMemo(() => {
+    if (!returnDate) return "";
+    const selectedDate = new Date(returnDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    selectedDate.setHours(0, 0, 0, 0);
+    if (selectedDate < today) {
+      return "Expected Return Date cannot be before today.";
+    }
+    return "";
+  }, [returnDate]);
+
+  const isAllocateFormValid = !allocateAssetTagError && !allocateNameError && !allocateDeptError && !allocateReturnDateError;
+
   // Handle Allocation Submit
   const handleAllocate = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAllocateFormValid) return;
     setAllocationConflictError(null);
     setConflictingAsset(null);
 
@@ -151,8 +257,8 @@ export default function AllocationTransferScreen() {
     // Check conflict: Cannot allocate if not Available
     if (asset.status !== "Available") {
       setConflictingAsset(asset);
-      const holder = asset.allocatedTo ? `currently held by ${asset.allocatedTo}` : `currently status is ${asset.status}`;
-      setAllocationConflictError(`Conflict detected: Asset ${asset.tag} (${asset.name}) is ${holder}. Double-allocation is blocked.`);
+      const employeeName = asset.allocatedTo || "another employee";
+      setAllocationConflictError(`Already allocated to ${employeeName}. Please create a Transfer Request.`);
       return;
     }
 
@@ -182,8 +288,14 @@ export default function AllocationTransferScreen() {
     // Reset Form
     setSelectedAssetTag("");
     setAssigneeName("");
-    setAssigneeDept("Engineering");
+    setAssigneeDept("");
     setReturnDate("");
+    setAllocateTouched({
+      assetTag: false,
+      assigneeName: false,
+      assigneeDept: false,
+      returnDate: false
+    });
   };
 
   // Trigger Transfer Request from Conflict
@@ -287,7 +399,7 @@ export default function AllocationTransferScreen() {
     <div className="min-h-screen flex bg-[#ffffff] text-slate-800 font-sans">
       <Sidebar activeItem="Allocation &amp; Transfer" />
 
-      <main className="flex-1 p-4 sm:p-6 md:p-8 lg:p-10 overflow-y-auto bg-slate-55/50">
+      <main className="flex-1 p-4 sm:p-6 md:p-8 lg:p-10 overflow-y-auto bg-slate-5/50">
         <div className="max-w-6xl mx-auto space-y-8">
           
           {/* Header */}
@@ -346,12 +458,12 @@ export default function AllocationTransferScreen() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {overdueAllocations.map(asset => (
-                    <div key={asset.tag} className="bg-white border border-red-100 p-3 rounded-xl flex items-center justify-between text-xs">
+                    <div key={asset.tag} className="bg-white border border-red-100 p-3 rounded-xl flex items-center justify-between text-xs font-semibold">
                       <div>
                         <span className="font-bold text-red-950">{asset.tag}</span>
                         <p className="font-bold text-slate-700 mt-0.5">{asset.name}</p>
                         <p className="text-[10px] text-slate-450 mt-1 flex items-center gap-1 font-semibold">
-                          <User className="w-3 h-3 text-slate-400" /> By: {asset.allocatedTo}
+                          <User className="w-3.5 h-3.5 text-slate-400" /> By: {asset.allocatedTo}
                         </p>
                       </div>
                       <span className="text-[10px] font-extrabold text-red-700 bg-red-50 border border-red-150 rounded px-2 py-0.5">
@@ -401,9 +513,11 @@ export default function AllocationTransferScreen() {
                             <tr key={asset.tag} className="hover:bg-slate-50/30 transition-colors">
                               <td className="py-3.5 px-4 font-bold text-slate-900">{asset.tag}</td>
                               <td className="py-3.5 px-4 text-slate-650">{asset.name}</td>
-                              <td className="py-3.5 px-4 text-slate-800 flex items-center gap-1.5 mt-0.5">
-                                <User className="w-3.5 h-3.5 text-slate-400" />
-                                {asset.allocatedTo}
+                              <td className="py-3.5 px-4 text-slate-800">
+                                <div className="flex items-center gap-1.5">
+                                  <User className="w-3.5 h-3.5 text-slate-400" />
+                                  {asset.allocatedTo}
+                                </div>
                               </td>
                               <td className="py-3.5 px-4 text-slate-500">{asset.allocatedToDept}</td>
                               <td className="py-3.5 px-4">
@@ -463,7 +577,7 @@ export default function AllocationTransferScreen() {
                       return (
                         <div 
                           key={tr.id} 
-                          className={`p-4 rounded-xl border text-xs flex flex-col gap-2.5 transition-all ${
+                          className={`p-4 rounded-xl border text-xs flex flex-col gap-3 transition-all ${
                             isPending 
                               ? "bg-slate-50/50 border-slate-200/80" 
                               : tr.status === "Approved" 
@@ -471,53 +585,58 @@ export default function AllocationTransferScreen() {
                               : "bg-slate-100 border-slate-200 text-slate-500 opacity-60"
                           }`}
                         >
-                          {/* Asset Header */}
+                          {/* Asset Header & Status Badge */}
                           <div className="flex justify-between items-start gap-1">
                             <div>
-                              <span className="font-extrabold text-slate-950">{tr.assetTag}</span>
-                              <h4 className="font-bold text-slate-500 text-2xs mt-0.5">{tr.assetName}</h4>
+                              <span className="font-extrabold text-slate-950 text-sm">{tr.assetTag}</span>
+                              <h4 className="font-bold text-slate-500 text-[10px] mt-0.5">{tr.assetName}</h4>
                             </div>
-                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase border ${
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border tracking-wider ${
                               isPending
-                                ? "bg-amber-50 text-amber-700 border-amber-100"
+                                ? "bg-amber-50 text-amber-700 border-amber-200"
                                 : tr.status === "Approved"
-                                ? "bg-odoo-100 text-odoo-800 border-odoo-200"
-                                : "bg-slate-200 text-slate-700 border-slate-300"
+                                ? "bg-odoo-50 text-odoo-700 border-odoo-200"
+                                : "bg-rose-50 text-rose-700 border-rose-200"
                             }`}>
                               {tr.status}
                             </span>
                           </div>
 
-                          {/* Flow Arrow */}
-                          <div className="flex items-center justify-between p-2 bg-white border border-slate-100 rounded-lg text-2xs font-extrabold text-slate-700 shadow-2xs">
-                            <div className="min-w-0">
-                              <p className="text-slate-400 uppercase text-[8px] tracking-wider font-extrabold">From Holder</p>
-                              <p className="truncate mt-0.5">{tr.fromEmployee}</p>
+                          {/* Details Row */}
+                          <div className="grid grid-cols-2 gap-2 text-[10px] font-semibold text-slate-500 border-t border-b border-slate-100 py-2">
+                            <div>
+                              <span className="block text-[8px] text-slate-400 uppercase tracking-wider">Current Holder</span>
+                              <span className="text-slate-800 font-bold">{tr.fromEmployee}</span>
                             </div>
-                            <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
-                            <div className="min-w-0 text-right">
-                              <p className="text-slate-400 uppercase text-[8px] tracking-wider font-extrabold">Target Assignee</p>
-                              <p className="truncate mt-0.5">{tr.toEmployee} ({tr.toDept})</p>
+                            <div>
+                              <span className="block text-[8px] text-slate-400 uppercase tracking-wider">Requested By</span>
+                              <span className="text-slate-800 font-bold">{tr.toEmployee} ({tr.toDept})</span>
                             </div>
                           </div>
 
-                          {/* Actions */}
-                          {isPending && (
-                            <div className="flex items-center gap-2 pt-1 border-t border-slate-150/60">
-                              <button
-                                onClick={() => handleApproveTransfer(tr)}
-                                className="flex-1 bg-odoo-600 hover:bg-odoo-700 text-white py-1 rounded-lg font-bold text-2xs shadow-sm transition-colors cursor-pointer"
-                              >
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => handleRejectTransfer(tr.id)}
-                                className="px-2.5 py-1 text-slate-500 hover:bg-slate-200/50 rounded-lg font-bold border border-slate-250 text-2xs transition-colors cursor-pointer"
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          )}
+                          {/* Footer: Date + Actions */}
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
+                              <Calendar className="w-3.5 h-3.5" /> {tr.requestDate}
+                            </span>
+
+                            {isPending && (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleApproveTransfer(tr)}
+                                  className="bg-odoo-600 hover:bg-odoo-700 text-white px-3 py-1 rounded-lg font-bold text-[10px] shadow-sm transition-colors cursor-pointer"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleRejectTransfer(tr.id)}
+                                  className="px-2 py-1 text-slate-500 hover:bg-slate-200 rounded-lg font-bold border border-slate-200 text-[10px] transition-colors cursor-pointer"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       );
                     })
@@ -573,16 +692,22 @@ export default function AllocationTransferScreen() {
                         setAllocationConflictError(null);
                         setConflictingAsset(null);
                       }}
+                      onBlur={() => setAllocateTouched(prev => ({ ...prev, assetTag: true }))}
                       required
-                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 focus:bg-white text-slate-900 font-semibold"
+                      className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 focus:bg-white text-slate-900 font-semibold ${
+                        allocateTouched.assetTag && allocateAssetTagError ? "border-rose-300 focus:border-rose-500" : "border-slate-200"
+                      }`}
                     >
                       <option value="">-- Choose an Asset --</option>
-                      {assets.map(asset => (
+                      {availableAssets.map(asset => (
                         <option key={asset.tag} value={asset.tag}>
-                          {asset.tag} - {asset.name} ({asset.status})
+                          {asset.tag} - {asset.name}
                         </option>
                       ))}
                     </select>
+                    {allocateTouched.assetTag && allocateAssetTagError && (
+                      <p className="text-rose-500 text-xs font-semibold mt-1">{allocateAssetTagError}</p>
+                    )}
                   </div>
 
                   {/* Conflict alert inside modal */}
@@ -606,17 +731,28 @@ export default function AllocationTransferScreen() {
                     </div>
                   )}
 
-                  {/* Assignee Name */}
+                  {/* Assignee Name Dropdown */}
                   <div className="space-y-1.5">
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Employee Name</label>
-                    <input
-                      type="text"
-                      required
+                    <select
                       value={assigneeName}
                       onChange={(e) => setAssigneeName(e.target.value)}
-                      placeholder="e.g. Raj Verma or Siddharth Sen"
-                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 focus:bg-white text-slate-900 font-semibold"
-                    />
+                      onBlur={() => setAllocateTouched(prev => ({ ...prev, assigneeName: true }))}
+                      required
+                      className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 focus:bg-white text-slate-900 font-semibold ${
+                        allocateTouched.assigneeName && allocateNameError ? "border-rose-300 focus:border-rose-500" : "border-slate-200"
+                      }`}
+                    >
+                      <option value="">-- Choose Employee --</option>
+                      {employeesList.map(emp => (
+                        <option key={emp.id} value={emp.name}>
+                          {emp.name} ({emp.department})
+                        </option>
+                      ))}
+                    </select>
+                    {allocateTouched.assigneeName && allocateNameError && (
+                      <p className="text-rose-500 text-xs font-semibold mt-1">{allocateNameError}</p>
+                    )}
                   </div>
 
                   {/* Department & Expected Return Date */}
@@ -626,14 +762,22 @@ export default function AllocationTransferScreen() {
                       <select
                         value={assigneeDept}
                         onChange={(e) => setAssigneeDept(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 text-slate-900 font-semibold"
+                        onBlur={() => setAllocateTouched(prev => ({ ...prev, assigneeDept: true }))}
+                        required
+                        className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 focus:bg-white text-slate-900 font-semibold ${
+                          allocateTouched.assigneeDept && allocateDeptError ? "border-rose-300 focus:border-rose-500" : "border-slate-200"
+                        }`}
                       >
-                        <option value="Engineering">Engineering</option>
-                        <option value="Marketing">Marketing</option>
-                        <option value="Procurement">Procurement</option>
-                        <option value="Logistics">Logistics</option>
-                        <option value="Sales">Sales</option>
+                        <option value="">-- Select Dept --</option>
+                        {departmentsList.map(dept => (
+                          <option key={dept.id} value={dept.name}>
+                            {dept.name}
+                          </option>
+                        ))}
                       </select>
+                      {allocateTouched.assigneeDept && allocateDeptError && (
+                        <p className="text-rose-500 text-xs font-semibold mt-1">{allocateDeptError}</p>
+                      )}
                     </div>
 
                     <div className="space-y-1.5">
@@ -644,8 +788,14 @@ export default function AllocationTransferScreen() {
                         type="date"
                         value={returnDate}
                         onChange={(e) => setReturnDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 text-slate-900 font-semibold"
+                        onBlur={() => setAllocateTouched(prev => ({ ...prev, returnDate: true }))}
+                        className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 text-slate-900 font-semibold ${
+                          allocateTouched.returnDate && allocateReturnDateError ? "border-rose-300 focus:border-rose-500" : "border-slate-200"
+                        }`}
                       />
+                      {allocateTouched.returnDate && allocateReturnDateError && (
+                        <p className="text-rose-500 text-xs font-semibold mt-1">{allocateReturnDateError}</p>
+                      )}
                     </div>
                   </div>
 
@@ -661,7 +811,12 @@ export default function AllocationTransferScreen() {
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-odoo-600 hover:bg-odoo-700 text-white transition-all shadow-md shadow-odoo-600/10 cursor-pointer"
+                    disabled={!isAllocateFormValid}
+                    className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-md ${
+                      isAllocateFormValid
+                        ? "bg-odoo-600 hover:bg-odoo-700 text-white shadow-odoo-600/10 cursor-pointer"
+                        : "bg-slate-200 text-slate-400 border border-slate-200 cursor-not-allowed"
+                    }`}
                   >
                     Allocate
                   </button>
@@ -726,7 +881,7 @@ export default function AllocationTransferScreen() {
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Check-in Condition</label>
                     <select
                       value={returnCondition}
-                      onChange={(e) => setRegCondition(e.target.value as any)}
+                      onChange={(e) => setRegCondition(e.target.value as "New" | "Good" | "Fair" | "Poor")}
                       className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 text-slate-900 font-semibold"
                     >
                       <option value="New">New</option>

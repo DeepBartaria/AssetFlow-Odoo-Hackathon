@@ -6,15 +6,12 @@ import {
   Box, 
   Plus, 
   Search, 
-  Filter, 
   History, 
   Calendar, 
   MapPin, 
   User, 
   Wrench, 
-  AlertTriangle,
   Info,
-  DollarSign,
   Tag,
   CheckCircle2,
   X,
@@ -50,7 +47,7 @@ const DEFAULT_ASSETS: Asset[] = [
     category: "Electronics",
     serialNumber: "DL-99281-X",
     acquisitionDate: "2025-03-10",
-    acquisitionCost: 1200,
+    acquisitionCost: 45000,
     condition: "Good",
     location: "IT Storage Room",
     status: "Available",
@@ -65,7 +62,7 @@ const DEFAULT_ASSETS: Asset[] = [
     category: "Electronics",
     serialNumber: "AP-MBP-2026",
     acquisitionDate: "2026-01-15",
-    acquisitionCost: 2400,
+    acquisitionCost: 185000,
     condition: "New",
     location: "Desk E12",
     status: "Allocated",
@@ -81,7 +78,7 @@ const DEFAULT_ASSETS: Asset[] = [
     category: "Electronics",
     serialNumber: "EP-PROJ-662",
     acquisitionDate: "2024-08-20",
-    acquisitionCost: 1500,
+    acquisitionCost: 95000,
     condition: "Fair",
     location: "Conference Room B2",
     status: "Under Maintenance",
@@ -97,7 +94,7 @@ const DEFAULT_ASSETS: Asset[] = [
     category: "Facilities",
     serialNumber: "VT-AC-0003",
     acquisitionDate: "2023-05-12",
-    acquisitionCost: 800,
+    acquisitionCost: 35000,
     condition: "Good",
     location: "Building A - 1st Floor",
     status: "Available",
@@ -112,7 +109,7 @@ const DEFAULT_ASSETS: Asset[] = [
     category: "Vehicles",
     serialNumber: "TY-FL-78",
     acquisitionDate: "2022-11-04",
-    acquisitionCost: 18000,
+    acquisitionCost: 850000,
     condition: "Fair",
     location: "Main Warehouse",
     status: "Allocated",
@@ -128,7 +125,7 @@ const DEFAULT_ASSETS: Asset[] = [
     category: "Electronics",
     serialNumber: "HP-LJ-897",
     acquisitionDate: "2025-06-22",
-    acquisitionCost: 450,
+    acquisitionCost: 22000,
     condition: "Good",
     location: "Finance Wing B",
     status: "Available",
@@ -143,7 +140,7 @@ const DEFAULT_ASSETS: Asset[] = [
     category: "Furniture",
     serialNumber: "HM-CH-873",
     acquisitionDate: "2024-04-18",
-    acquisitionCost: 350,
+    acquisitionCost: 15000,
     condition: "Good",
     location: "Desk E14",
     status: "Available",
@@ -158,7 +155,7 @@ const DEFAULT_ASSETS: Asset[] = [
     category: "Electronics",
     serialNumber: "DL-MON-21",
     acquisitionDate: "2025-02-14",
-    acquisitionCost: 320,
+    acquisitionCost: 28000,
     condition: "Good",
     location: "IT Storage Room",
     status: "Available",
@@ -175,7 +172,7 @@ const DEFAULT_ASSETS: Asset[] = [
     category: "Electronics",
     serialNumber: "SS-MON-88",
     acquisitionDate: "2024-10-05",
-    acquisitionCost: 550,
+    acquisitionCost: 32000,
     condition: "Poor",
     location: "Building C - Lab 4",
     status: "Lost",
@@ -187,7 +184,6 @@ const DEFAULT_ASSETS: Asset[] = [
   }
 ];
 
-const CATEGORIES = ["Electronics", "Furniture", "Vehicles", "Facilities", "Other"];
 const STATUSES = ["Available", "Allocated", "Reserved", "Under Maintenance", "Lost", "Retired", "Disposed"];
 const CONDITIONS = ["New", "Good", "Fair", "Poor"];
 
@@ -200,13 +196,25 @@ export default function AssetsScreen() {
   // Registration Modal state
   const [isRegModalOpen, setIsRegModalOpen] = useState(false);
   const [regName, setRegName] = useState("");
-  const [regCategory, setRegCategory] = useState("Electronics");
+  const [regCategory, setRegCategory] = useState("");
   const [regSerial, setRegSerial] = useState("");
   const [regCost, setRegCost] = useState("");
   const [regDate, setRegDate] = useState("");
   const [regCondition, setRegCondition] = useState<"New" | "Good" | "Fair" | "Poor">("Good");
   const [regLocation, setRegLocation] = useState("");
   const [regIsShared, setRegIsShared] = useState(false);
+
+  // Validation touch state
+  const [regTouched, setRegTouched] = useState({
+    name: false,
+    serialNumber: false,
+    cost: false,
+    date: false,
+    location: false
+  });
+
+  // Dynamic Categories from Organization Setup
+  const [categoriesList, setCategoriesList] = useState<string[]>([]);
 
   // Asset Details Sidebar Modal state
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
@@ -216,22 +224,58 @@ export default function AssetsScreen() {
     const stored = localStorage.getItem("assetflow_assets");
     if (stored) {
       try {
-        setAssets(JSON.parse(stored));
-      } catch (e) {
-        setAssets(DEFAULT_ASSETS);
+        const parsed = JSON.parse(stored);
+        setTimeout(() => setAssets(parsed), 0);
+      } catch {
+        setTimeout(() => setAssets(DEFAULT_ASSETS), 0);
       }
     } else {
-      setAssets(DEFAULT_ASSETS);
+      setTimeout(() => setAssets(DEFAULT_ASSETS), 0);
       localStorage.setItem("assetflow_assets", JSON.stringify(DEFAULT_ASSETS));
     }
   }, []);
+
+  interface OrgCategory {
+    id: number;
+    name: string;
+    description: string;
+    warranty: number;
+    status: "Active" | "Inactive";
+  }
+
+  // Sync active categories from localStorage
+  useEffect(() => {
+    const storedCats = localStorage.getItem("assetflow_categories");
+    let activeCats: string[] = [];
+    if (storedCats) {
+      try {
+        const parsed = JSON.parse(storedCats) as OrgCategory[];
+        activeCats = parsed.filter((c) => c.status === "Active").map((c) => c.name);
+      } catch {
+        // use defaults
+      }
+    }
+    if (activeCats.length === 0) {
+      activeCats = ["Electronics", "Furniture", "Vehicles"];
+    }
+    const catsToSet = activeCats;
+    setTimeout(() => setCategoriesList(catsToSet), 0);
+  }, []);
+
+  // Default dropdown category to first active category
+  useEffect(() => {
+    if (categoriesList.length > 0 && (!regCategory || !categoriesList.includes(regCategory))) {
+      const firstCat = categoriesList[0];
+      setTimeout(() => setRegCategory(firstCat), 0);
+    }
+  }, [categoriesList, regCategory]);
 
   const saveAssetsToLocal = (updatedList: Asset[]) => {
     setAssets(updatedList);
     localStorage.setItem("assetflow_assets", JSON.stringify(updatedList));
   };
 
-  // Filtered assets
+  // Filtered assets search and filter logic
   const filteredAssets = useMemo(() => {
     return assets.filter(asset => {
       const matchSearch = 
@@ -247,9 +291,75 @@ export default function AssetsScreen() {
     });
   }, [assets, searchTerm, selectedCategory, selectedStatus]);
 
-  // Generate asset tag sequentially
+  // Validation Rules
+  const regNameError = useMemo(() => {
+    if (!regName.trim()) {
+      return "Asset Name is required.";
+    }
+    return "";
+  }, [regName]);
+
+  const regCategoryError = useMemo(() => {
+    if (!regCategory) {
+      return "Category is required.";
+    }
+    return "";
+  }, [regCategory]);
+
+  const regSerialError = useMemo(() => {
+    const val = regSerial.trim();
+    if (!val) {
+      return "Serial Number is required.";
+    }
+    const isDuplicate = assets.some(
+      (a) => a.serialNumber.toLowerCase().trim() === val.toLowerCase()
+    );
+    if (isDuplicate) {
+      return "Serial Number must be unique.";
+    }
+    return "";
+  }, [regSerial, assets]);
+
+  const regCostError = useMemo(() => {
+    const val = regCost.trim();
+    if (!val) {
+      return "Acquisition Cost is required.";
+    }
+    const cleanVal = val.replace(/₹/g, "").replace(/,/g, "").trim();
+    const num = parseFloat(cleanVal);
+    if (isNaN(num) || num <= 0) {
+      return "Acquisition Cost must be a positive number.";
+    }
+    return "";
+  }, [regCost]);
+
+  const regDateError = useMemo(() => {
+    if (!regDate) {
+      return "Acquisition Date is required.";
+    }
+    const selectedDate = new Date(regDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    selectedDate.setHours(0, 0, 0, 0);
+    if (selectedDate > today) {
+      return "Acquisition Date cannot be in the future.";
+    }
+    return "";
+  }, [regDate]);
+
+  const regLocationError = useMemo(() => {
+    if (!regLocation.trim()) {
+      return "Location is required.";
+    }
+    return "";
+  }, [regLocation]);
+
+  const isRegFormValid = !regNameError && !regCategoryError && !regSerialError && !regCostError && !regDateError && !regLocationError;
+
+  // Handle register asset submit
   const handleRegisterAsset = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isRegFormValid) return;
 
     // Auto-generate sequential tag
     const maxTagNum = assets.reduce((max, asset) => {
@@ -258,15 +368,18 @@ export default function AssetsScreen() {
     }, 0);
     const newTag = `AF-${String(maxTagNum + 1).padStart(4, "0")}`;
 
+    const cleanCost = regCost.replace(/₹/g, "").replace(/,/g, "").trim();
+    const acquisitionCost = parseFloat(cleanCost) || 0;
+
     const newAsset: Asset = {
       tag: newTag,
-      name: regName,
+      name: regName.trim(),
       category: regCategory,
-      serialNumber: regSerial || `SN-${Math.random().toString(36).substring(3, 9).toUpperCase()}`,
-      acquisitionDate: regDate || new Date().toISOString().split("T")[0],
-      acquisitionCost: parseFloat(regCost) || 0,
+      serialNumber: regSerial.trim(),
+      acquisitionDate: regDate,
+      acquisitionCost: acquisitionCost,
       condition: regCondition,
-      location: regLocation || "Main HQ Storage",
+      location: regLocation.trim(),
       status: "Available",
       isSharedBookable: regIsShared,
       history: [
@@ -285,13 +398,20 @@ export default function AssetsScreen() {
 
     // Reset Form
     setRegName("");
-    setRegCategory("Electronics");
+    setRegCategory(categoriesList[0] || "");
     setRegSerial("");
     setRegCost("");
     setRegDate("");
     setRegCondition("Good");
     setRegLocation("");
     setRegIsShared(false);
+    setRegTouched({
+      name: false,
+      serialNumber: false,
+      cost: false,
+      date: false,
+      location: false
+    });
   };
 
   // Helper for status badge styling
@@ -334,7 +454,7 @@ export default function AssetsScreen() {
     <div className="min-h-screen flex bg-[#ffffff] text-slate-800 font-sans">
       <Sidebar activeItem="Assets" />
 
-      <main className="flex-1 p-4 sm:p-6 md:p-8 lg:p-10 overflow-y-auto bg-slate-55/50">
+      <main className="flex-1 p-4 sm:p-6 md:p-8 lg:p-10 overflow-y-auto bg-slate-50/50">
         <div className="max-w-6xl mx-auto space-y-8">
           
           {/* Header */}
@@ -425,7 +545,7 @@ export default function AssetsScreen() {
                     className="w-full bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-800 focus:outline-none focus:border-odoo-500"
                   >
                     <option value="All">All Categories</option>
-                    {CATEGORIES.map(c => (
+                    {categoriesList.map(c => (
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
@@ -590,12 +710,17 @@ export default function AssetsScreen() {
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Asset Name</label>
                     <input
                       type="text"
-                      required
                       value={regName}
                       onChange={(e) => setRegName(e.target.value)}
+                      onBlur={() => setRegTouched(prev => ({ ...prev, name: true }))}
                       placeholder="e.g. Epson 4K Projector or Dell Latitude 5440"
-                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 focus:bg-white text-slate-900 font-medium transition-colors"
+                      className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 focus:bg-white text-slate-900 font-medium transition-colors ${
+                        regTouched.name && regNameError ? "border-rose-300 focus:border-rose-500" : "border-slate-200"
+                      }`}
                     />
+                    {regTouched.name && regNameError && (
+                      <p className="text-rose-500 text-xs font-semibold mt-1">{regNameError}</p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -607,10 +732,13 @@ export default function AssetsScreen() {
                         onChange={(e) => setRegCategory(e.target.value)}
                         className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 text-slate-900 font-semibold"
                       >
-                        {CATEGORIES.map(c => (
+                        {categoriesList.map(c => (
                           <option key={c} value={c}>{c}</option>
                         ))}
                       </select>
+                      {regTouched.name && regCategoryError && (
+                        <p className="text-rose-500 text-xs font-semibold mt-1">{regCategoryError}</p>
+                      )}
                     </div>
 
                     {/* Serial Number */}
@@ -620,9 +748,15 @@ export default function AssetsScreen() {
                         type="text"
                         value={regSerial}
                         onChange={(e) => setRegSerial(e.target.value)}
+                        onBlur={() => setRegTouched(prev => ({ ...prev, serialNumber: true }))}
                         placeholder="e.g. SN-XXXX-XXXX"
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 focus:bg-white text-slate-900 font-medium"
+                        className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 focus:bg-white text-slate-900 font-medium ${
+                          regTouched.serialNumber && regSerialError ? "border-rose-300 focus:border-rose-500" : "border-slate-200"
+                        }`}
                       />
+                      {regTouched.serialNumber && regSerialError && (
+                        <p className="text-rose-500 text-xs font-semibold mt-1">{regSerialError}</p>
+                      )}
                     </div>
                   </div>
 
@@ -630,15 +764,21 @@ export default function AssetsScreen() {
                     {/* Cost */}
                     <div className="space-y-1.5">
                       <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-                        <DollarSign className="w-3.5 h-3.5" /> Acquisition Cost
+                        <span className="text-sm font-bold text-slate-500">₹</span> Acquisition Cost (₹)
                       </label>
                       <input
-                        type="number"
+                        type="text"
                         value={regCost}
                         onChange={(e) => setRegCost(e.target.value)}
-                        placeholder="e.g. 1200"
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 focus:bg-white text-slate-900 font-medium"
+                        onBlur={() => setRegTouched(prev => ({ ...prev, cost: true }))}
+                        placeholder="e.g. 45,000"
+                        className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 focus:bg-white text-slate-900 font-medium ${
+                          regTouched.cost && regCostError ? "border-rose-300 focus:border-rose-500" : "border-slate-200"
+                        }`}
                       />
+                      {regTouched.cost && regCostError && (
+                        <p className="text-rose-500 text-xs font-semibold mt-1">{regCostError}</p>
+                      )}
                     </div>
 
                     {/* Acquisition Date */}
@@ -650,8 +790,14 @@ export default function AssetsScreen() {
                         type="date"
                         value={regDate}
                         onChange={(e) => setRegDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 text-slate-900 font-semibold"
+                        onBlur={() => setRegTouched(prev => ({ ...prev, date: true }))}
+                        className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 text-slate-900 font-semibold ${
+                          regTouched.date && regDateError ? "border-rose-300 focus:border-rose-500" : "border-slate-200"
+                        }`}
                       />
+                      {regTouched.date && regDateError && (
+                        <p className="text-rose-500 text-xs font-semibold mt-1">{regDateError}</p>
+                      )}
                     </div>
                   </div>
 
@@ -661,7 +807,7 @@ export default function AssetsScreen() {
                       <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Initial Condition</label>
                       <select
                         value={regCondition}
-                        onChange={(e) => setRegCondition(e.target.value as any)}
+                        onChange={(e) => setRegCondition(e.target.value as "New" | "Good" | "Fair" | "Poor")}
                         className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 text-slate-900 font-semibold"
                       >
                         {CONDITIONS.map(c => (
@@ -679,9 +825,15 @@ export default function AssetsScreen() {
                         type="text"
                         value={regLocation}
                         onChange={(e) => setRegLocation(e.target.value)}
+                        onBlur={() => setRegTouched(prev => ({ ...prev, location: true }))}
                         placeholder="e.g. IT Storage or Floor 2"
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 focus:bg-white text-slate-900 font-medium"
+                        className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 focus:bg-white text-slate-900 font-medium ${
+                          regTouched.location && regLocationError ? "border-rose-300 focus:border-rose-500" : "border-slate-200"
+                        }`}
                       />
+                      {regTouched.location && regLocationError && (
+                        <p className="text-rose-500 text-xs font-semibold mt-1">{regLocationError}</p>
+                      )}
                     </div>
                   </div>
 
@@ -717,7 +869,12 @@ export default function AssetsScreen() {
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-odoo-600 hover:bg-odoo-700 text-white transition-all shadow-md shadow-odoo-600/10 cursor-pointer"
+                    disabled={!isRegFormValid}
+                    className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-md ${
+                      isRegFormValid 
+                        ? "bg-odoo-600 hover:bg-odoo-700 text-white shadow-odoo-600/10 cursor-pointer"
+                        : "bg-slate-200 text-slate-400 border border-slate-200 cursor-not-allowed"
+                    }`}
                   >
                     Save Asset
                   </button>
@@ -799,7 +956,7 @@ export default function AssetsScreen() {
                   </div>
                   <div>
                     <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Acquisition Cost</p>
-                    <p className="text-slate-900 text-sm mt-1 flex items-center gap-1"><DollarSign className="w-3.5 h-3.5 text-slate-400" /> {selectedAsset.acquisitionCost.toLocaleString()}</p>
+                    <p className="text-slate-900 text-sm mt-1 flex items-center gap-1"><span className="text-slate-400 font-bold">₹</span> {selectedAsset.acquisitionCost.toLocaleString("en-IN")}</p>
                   </div>
                   <div className="col-span-2">
                     <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Expected Location</p>

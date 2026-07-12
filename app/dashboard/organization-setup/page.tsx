@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { 
   Plus, 
   Info, 
@@ -71,7 +71,63 @@ export default function OrganizationSetupScreen() {
 
   // 3. Employees stored in React State
   const [employees, setEmployees] = useState(INITIAL_EMPLOYEES_DATA);
-  
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const storedDepts = localStorage.getItem("assetflow_departments");
+    if (storedDepts) {
+      try {
+        const parsed = JSON.parse(storedDepts);
+        setTimeout(() => setDepartments(parsed), 0);
+      } catch {}
+    } else {
+      localStorage.setItem("assetflow_departments", JSON.stringify(INITIAL_DEPARTMENTS_DATA));
+    }
+
+    const storedCats = localStorage.getItem("assetflow_categories");
+    if (storedCats) {
+      try {
+        const parsed = JSON.parse(storedCats);
+        setTimeout(() => setCategories(parsed), 0);
+      } catch {}
+    } else {
+      localStorage.setItem("assetflow_categories", JSON.stringify(INITIAL_CATEGORIES_DATA));
+    }
+
+    const storedEmps = localStorage.getItem("assetflow_employees");
+    if (storedEmps) {
+      try {
+        const parsed = JSON.parse(storedEmps);
+        setTimeout(() => setEmployees(parsed), 0);
+      } catch {}
+    } else {
+      localStorage.setItem("assetflow_employees", JSON.stringify(INITIAL_EMPLOYEES_DATA));
+    }
+  }, []);
+  const saveDepartments = (updated: typeof departments | ((prev: typeof departments) => typeof departments)) => {
+    setDepartments((prev) => {
+      const next = typeof updated === "function" ? updated(prev) : updated;
+      localStorage.setItem("assetflow_departments", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const saveCategories = (updated: typeof categories | ((prev: typeof categories) => typeof categories)) => {
+    setCategories((prev) => {
+      const next = typeof updated === "function" ? updated(prev) : updated;
+      localStorage.setItem("assetflow_categories", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const saveEmployees = (updated: typeof employees | ((prev: typeof employees) => typeof employees)) => {
+    setEmployees((prev) => {
+      const next = typeof updated === "function" ? updated(prev) : updated;
+      localStorage.setItem("assetflow_employees", JSON.stringify(next));
+      return next;
+    });
+  };
+
   // Department Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
@@ -309,10 +365,10 @@ export default function OrganizationSetupScreen() {
         parent: formData.parent.trim() || "—",
         status: formData.status
       };
-      setDepartments((prev) => [...prev, newDept]);
+      saveDepartments((prev) => [...prev, newDept]);
       showToast("Department created successfully");
     } else {
-      setDepartments((prev) =>
+      saveDepartments((prev) =>
         prev.map((d) => {
           if (d.id === editingId) {
             return {
@@ -333,7 +389,7 @@ export default function OrganizationSetupScreen() {
   };
 
   const handleDeactivate = (id: number) => {
-    setDepartments((prev) =>
+    saveDepartments((prev) =>
       prev.map((d) => {
         if (d.id === id) {
           return { ...d, status: "Inactive" as const };
@@ -390,10 +446,10 @@ export default function OrganizationSetupScreen() {
         warranty: Number(categoryFormData.warranty),
         status: categoryFormData.status
       };
-      setCategories((prev) => [...prev, newCat]);
+      saveCategories((prev) => [...prev, newCat]);
       showToast("Category created successfully");
     } else {
-      setCategories((prev) =>
+      saveCategories((prev) =>
         prev.map((c) => {
           if (c.id === editingCategoryId) {
             return {
@@ -413,7 +469,7 @@ export default function OrganizationSetupScreen() {
   };
 
   const handleCategoryDeactivate = (id: number) => {
-    setCategories((prev) =>
+    saveCategories((prev) =>
       prev.map((c) => {
         if (c.id === id) {
           return { ...c, status: "Inactive" as const };
@@ -475,10 +531,10 @@ export default function OrganizationSetupScreen() {
         role: employeeFormData.role,
         status: employeeFormData.status
       };
-      setEmployees((prev) => [...prev, newEmp]);
+      saveEmployees((prev) => [...prev, newEmp]);
       showToast("Employee created successfully");
     } else {
-      setEmployees((prev) =>
+      saveEmployees((prev) =>
         prev.map((emp) => {
           if (emp.id === editingEmployeeId) {
             return {
@@ -499,7 +555,7 @@ export default function OrganizationSetupScreen() {
   };
 
   const handleEmployeeDeactivate = (id: number) => {
-    setEmployees((prev) =>
+    saveEmployees((prev) =>
       prev.map((emp) => {
         if (emp.id === id) {
           return { ...emp, status: "Inactive" as const };
