@@ -341,8 +341,15 @@ AssetFlow-Odoo-Hackathon/
 ```
 
 ---
-Scanner to check 
-<img width="400" height="400" alt="image" src="https://github.com/user-attachments/assets/283c94f5-31d9-4d1b-bf0e-12862ce408e6" />
+## Scanner to Check
+
+Scan the QR code below to access the application.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/283c94f5-31d9-4d1b-bf0e-12862ce408e6"
+       alt="QR code to access the application"
+       width="400" />
+</p>
 
 ## Future Enhancements
 
