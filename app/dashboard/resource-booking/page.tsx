@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   CalendarClock, 
@@ -98,10 +98,11 @@ const HOURS = [
 export default function ResourceBookingScreen() {
   const [selectedResourceId, setSelectedResourceId] = useState("room-b2");
   const [selectedDate, setSelectedDate] = useState("2026-07-07");
-  const [bookings, setBookings] = useState<Booking[]>(INITIAL_BOOKINGS);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [focusedBookingId, setFocusedBookingId] = useState<string | null>(null);
+  const [dynamicResources, setDynamicResources] = useState(RESOURCES);
 
   // Form states
   const [formTitle, setFormTitle] = useState("");
@@ -110,9 +111,53 @@ export default function ResourceBookingScreen() {
   const [formDept, setFormDept] = useState("Engineering");
   const [formRequestor, setFormRequestor] = useState("Jane Doe");
 
+  // Load and save bookings/resources
+  useEffect(() => {
+    const stored = localStorage.getItem("assetflow_bookings");
+    if (stored) {
+      try {
+        setBookings(JSON.parse(stored));
+      } catch (e) {
+        setBookings(INITIAL_BOOKINGS);
+      }
+    } else {
+      setBookings(INITIAL_BOOKINGS);
+      localStorage.setItem("assetflow_bookings", JSON.stringify(INITIAL_BOOKINGS));
+    }
+
+    const storedAssets = localStorage.getItem("assetflow_assets");
+    if (storedAssets) {
+      try {
+        const parsedAssets = JSON.parse(storedAssets);
+        const bookableAssets = parsedAssets
+          .filter((a: any) => a.isSharedBookable)
+          .map((a: any) => ({
+            id: `asset-${a.tag.toLowerCase()}`,
+            name: `${a.name} (${a.tag})`,
+            type: a.category === "Vehicles" ? "Vehicle" : a.category === "Electronics" ? "Equipment" : "Other",
+            info: `Location: ${a.location}`,
+            capacity: a.condition === "New" ? "Excellent Condition" : "Good Condition"
+          }));
+        
+        const allResources = [...RESOURCES];
+        bookableAssets.forEach((ba: any) => {
+          if (!allResources.some(r => r.id === ba.id)) {
+            allResources.push(ba);
+          }
+        });
+        setDynamicResources(allResources);
+      } catch (e) {}
+    }
+  }, []);
+
+  const saveBookings = (updatedList: Booking[]) => {
+    setBookings(updatedList);
+    localStorage.setItem("assetflow_bookings", JSON.stringify(updatedList));
+  };
+
   const activeResource = useMemo(() => {
-    return RESOURCES.find(r => r.id === selectedResourceId) || RESOURCES[0];
-  }, [selectedResourceId]);
+    return dynamicResources.find(r => r.id === selectedResourceId) || dynamicResources[0];
+  }, [dynamicResources, selectedResourceId]);
 
   const activeBookings = useMemo(() => {
     return bookings.filter(b => b.resourceId === selectedResourceId && b.date === selectedDate);
@@ -262,7 +307,7 @@ export default function ResourceBookingScreen() {
           requestedBy: formRequestor
         };
 
-        setBookings(prev => [...prev, newConflict]);
+        saveBookings([...bookings, newConflict]);
       }
       return;
     }
@@ -280,18 +325,20 @@ export default function ResourceBookingScreen() {
       requestedBy: formRequestor
     };
 
-    setBookings(prev => [...prev, newBooking]);
+    saveBookings([...bookings, newBooking]);
     setIsModalOpen(false);
     // Reset form
     setFormTitle("");
   };
 
   const handleCancelBooking = (id: string) => {
-    setBookings(prev => prev.map(b => b.id === id ? { ...b, status: "Cancelled" } : b));
+    const updated = bookings.map(b => b.id === id ? { ...b, status: "Cancelled" as const } : b);
+    saveBookings(updated);
   };
 
   const handleRemoveConflict = (id: string) => {
-    setBookings(prev => prev.filter(b => b.id !== id));
+    const updated = bookings.filter(b => b.id !== id);
+    saveBookings(updated);
   };
 
   return (
@@ -339,7 +386,7 @@ export default function ResourceBookingScreen() {
                 onChange={(e) => setSelectedResourceId(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:border-odoo-500 transition-colors"
               >
-                {RESOURCES.map(r => (
+                {dynamicResources.map(r => (
                   <option key={r.id} value={r.id}>{r.name} ({r.type})</option>
                 ))}
               </select>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Wrench, 
@@ -28,6 +28,7 @@ interface MaintenanceRequest {
   technician?: string;
   resolvedDate?: string;
   resolutionNotes?: string;
+  photoUrl?: string;
 }
 
 const INITIAL_REQUESTS: MaintenanceRequest[] = [
@@ -89,7 +90,7 @@ const PRESET_ASSETS = [
 const TECHNICIANS = ["R. Varma", "S. Nair", "T. Gupta", "A. K. Sharma"];
 
 export default function MaintenanceScreen() {
-  const [requests, setRequests] = useState<MaintenanceRequest[]>(INITIAL_REQUESTS);
+  const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
   
   // Modal toggle states
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
@@ -105,6 +106,39 @@ export default function MaintenanceScreen() {
   const [formPriority, setFormPriority] = useState<"Low" | "Medium" | "High">("Medium");
   const [selectedTech, setSelectedTech] = useState(TECHNICIANS[0]);
   const [resolutionNotes, setResolutionNotes] = useState("");
+  const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load and save localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem("assetflow_maintenance_requests");
+    if (stored) {
+      try {
+        setRequests(JSON.parse(stored));
+      } catch (e) {
+        setRequests(INITIAL_REQUESTS);
+      }
+    } else {
+      setRequests(INITIAL_REQUESTS);
+      localStorage.setItem("assetflow_maintenance_requests", JSON.stringify(INITIAL_REQUESTS));
+    }
+  }, []);
+
+  const saveRequests = (updatedList: MaintenanceRequest[]) => {
+    setRequests(updatedList);
+    localStorage.setItem("assetflow_maintenance_requests", JSON.stringify(updatedList));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUploadedPhotoUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleCreateRequest = (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,21 +149,55 @@ export default function MaintenanceScreen() {
       assetName: selectedAsset ? selectedAsset.name : "Company Asset",
       description: formDesc,
       priority: formPriority,
-      status: "Pending"
+      status: "Pending",
+      photoUrl: uploadedPhotoUrl || undefined
     };
 
-    setRequests(prev => [...prev, newReq]);
+    const updated = [...requests, newReq];
+    saveRequests(updated);
     setIsRequestModalOpen(false);
     setFormDesc("");
+    setUploadedPhotoUrl(null);
   };
 
   const handleApprove = (id: string) => {
-    setRequests(prev => prev.map(req => {
+    const updated = requests.map(req => {
       if (req.id === id) {
-        return { ...req, status: "Approved" };
+        return { ...req, status: "Approved" as const };
       }
       return req;
-    }));
+    });
+    saveRequests(updated);
+
+    // Dynamic flip status of asset in assets localStorage
+    try {
+      const storedAssets = localStorage.getItem("assetflow_assets");
+      if (storedAssets) {
+        const parsedAssets = JSON.parse(storedAssets);
+        const req = requests.find(r => r.id === id);
+        if (req) {
+          const updatedAssets = parsedAssets.map((asset: any) => {
+            if (asset.tag === req.assetTag) {
+              return { 
+                ...asset, 
+                status: "Under Maintenance",
+                history: [
+                  {
+                    type: "StatusChange",
+                    date: new Date().toISOString().split("T")[0],
+                    details: "Status changed to Under Maintenance (Repair approved)",
+                    actor: "Jane Doe (Asset Manager)"
+                  },
+                  ...asset.history
+                ]
+              };
+            }
+            return asset;
+          });
+          localStorage.setItem("assetflow_assets", JSON.stringify(updatedAssets));
+        }
+      }
+    } catch (err) {}
   };
 
   const handleOpenAssign = (id: string) => {
@@ -140,27 +208,29 @@ export default function MaintenanceScreen() {
 
   const handleAssignTechnician = () => {
     if (!selectedReqId) return;
-    setRequests(prev => prev.map(req => {
+    const updated = requests.map(req => {
       if (req.id === selectedReqId) {
         return { 
           ...req, 
-          status: "Technician Assigned", 
+          status: "Technician Assigned" as const, 
           technician: selectedTech 
         };
       }
       return req;
-    }));
+    });
+    saveRequests(updated);
     setIsAssignModalOpen(false);
     setSelectedReqId(null);
   };
 
   const handleStartWork = (id: string) => {
-    setRequests(prev => prev.map(req => {
+    const updated = requests.map(req => {
       if (req.id === id) {
-        return { ...req, status: "In Progress" };
+        return { ...req, status: "In Progress" as const };
       }
       return req;
-    }));
+    });
+    saveRequests(updated);
   };
 
   const handleOpenResolve = (id: string) => {
@@ -175,23 +245,56 @@ export default function MaintenanceScreen() {
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const formattedDate = `${today.getDate()} ${monthNames[today.getMonth()]}`;
 
-    setRequests(prev => prev.map(req => {
+    const updated = requests.map(req => {
       if (req.id === selectedReqId) {
         return { 
           ...req, 
-          status: "Resolved", 
+          status: "Resolved" as const, 
           resolvedDate: formattedDate,
           resolutionNotes: resolutionNotes
         };
       }
       return req;
-    }));
+    });
+    saveRequests(updated);
+
+    // Revert status of asset back to Available in assets localStorage
+    try {
+      const storedAssets = localStorage.getItem("assetflow_assets");
+      if (storedAssets) {
+        const parsedAssets = JSON.parse(storedAssets);
+        const req = requests.find(r => r.id === selectedReqId);
+        if (req) {
+          const updatedAssets = parsedAssets.map((asset: any) => {
+            if (asset.tag === req.assetTag) {
+              return { 
+                ...asset, 
+                status: "Available",
+                history: [
+                  {
+                    type: "StatusChange",
+                    date: new Date().toISOString().split("T")[0],
+                    details: `Status reverted to Available (Repair resolved. Notes: ${resolutionNotes})`,
+                    actor: "Jane Doe (Asset Manager)"
+                  },
+                  ...asset.history
+                ]
+              };
+            }
+            return asset;
+          });
+          localStorage.setItem("assetflow_assets", JSON.stringify(updatedAssets));
+        }
+      }
+    } catch (err) {}
+
     setIsResolveModalOpen(false);
     setSelectedReqId(null);
   };
 
   const handleReject = (id: string) => {
-    setRequests(prev => prev.filter(req => req.id !== id));
+    const updated = requests.filter(req => req.id !== id);
+    saveRequests(updated);
   };
 
   // Group requests by status for Kanban layout
@@ -474,15 +577,49 @@ export default function MaintenanceScreen() {
                     </div>
                   </div>
 
-                  {/* Mock Image Upload */}
+                  {/* Functional Image Upload */}
                   <div className="space-y-1.5">
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
                       Attach photo of defect (Optional)
                     </label>
-                    <div className="border-2 border-dashed border-slate-200 hover:border-odoo-500 hover:bg-odoo-50/10 rounded-xl p-4 text-center cursor-pointer transition-all">
-                      <p className="text-xs text-slate-500 font-medium">Click to select files or drag-and-drop</p>
-                      <p className="text-[10px] text-slate-400 font-medium mt-0.5">PNG, JPG up to 5MB</p>
-                    </div>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      onChange={handleFileChange} 
+                      accept="image/*"
+                      className="hidden" 
+                    />
+                    
+                    {uploadedPhotoUrl ? (
+                      <div className="relative rounded-xl border border-slate-200 overflow-hidden bg-slate-50 p-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <img 
+                            src={uploadedPhotoUrl} 
+                            alt="Defect Preview" 
+                            className="w-10 h-10 object-cover rounded-lg border border-slate-200" 
+                          />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">Defect Image Attached</p>
+                            <p className="text-[10px] text-slate-450">Image loaded successfully</p>
+                          </div>
+                        </div>
+                        <button 
+                          type="button" 
+                          onClick={() => setUploadedPhotoUrl(null)}
+                          className="p-1 hover:bg-slate-200 rounded text-slate-500 cursor-pointer"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="border-2 border-dashed border-slate-200 hover:border-odoo-500 hover:bg-odoo-50/10 rounded-xl p-4 text-center cursor-pointer transition-all"
+                      >
+                        <p className="text-xs text-slate-500 font-medium">Click to select files or drag-and-drop</p>
+                        <p className="text-[10px] text-slate-400 font-medium mt-0.5">PNG, JPG up to 5MB</p>
+                      </div>
+                    )}
                   </div>
 
                 </div>
@@ -696,6 +833,17 @@ function MaintenanceCard({ request, onAction, onReject, actionLabel, rejectLabel
       <p className="text-xs text-slate-650 font-medium leading-relaxed break-words">
         {request.description}
       </p>
+
+      {/* Defect photo preview */}
+      {request.photoUrl && (
+        <div className="relative rounded-lg overflow-hidden border border-slate-100 max-h-24 bg-slate-55 mt-1">
+          <img 
+            src={request.photoUrl} 
+            alt="Defect defect" 
+            className="w-full h-20 object-cover hover:scale-105 transition-transform duration-300"
+          />
+        </div>
+      )}
 
       {/* Technician Assigned Badge */}
       {request.technician && (
