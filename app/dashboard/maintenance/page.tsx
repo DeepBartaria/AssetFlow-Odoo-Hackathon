@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Wrench, 
@@ -91,6 +91,8 @@ const TECHNICIANS = ["R. Varma", "S. Nair", "T. Gupta", "A. K. Sharma"];
 
 export default function MaintenanceScreen() {
   const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
+  const [dynamicAssets, setDynamicAssets] = useState(PRESET_ASSETS);
+  const [searchQuery, setSearchQuery] = useState("");
   
   // Modal toggle states
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
@@ -122,6 +124,28 @@ export default function MaintenanceScreen() {
       setRequests(INITIAL_REQUESTS);
       localStorage.setItem("assetflow_maintenance_requests", JSON.stringify(INITIAL_REQUESTS));
     }
+
+    const storedAssets = localStorage.getItem("assetflow_assets");
+    if (storedAssets) {
+      try {
+        const parsedAssets = JSON.parse(storedAssets);
+        const mappedAssets = parsedAssets.map((a: any) => ({
+          tag: a.tag,
+          name: a.name
+        }));
+        
+        const allAssets = [...PRESET_ASSETS];
+        mappedAssets.forEach((ma: any) => {
+          if (!allAssets.some(pa => pa.tag === ma.tag)) {
+            allAssets.push(ma);
+          }
+        });
+        setDynamicAssets(allAssets);
+        if (allAssets.length > 0) {
+          setFormAssetTag(allAssets[0].tag);
+        }
+      } catch (e) {}
+    }
   }, []);
 
   const saveRequests = (updatedList: MaintenanceRequest[]) => {
@@ -142,7 +166,7 @@ export default function MaintenanceScreen() {
 
   const handleCreateRequest = (e: React.FormEvent) => {
     e.preventDefault();
-    const selectedAsset = PRESET_ASSETS.find(a => a.tag === formAssetTag);
+    const selectedAsset = dynamicAssets.find(a => a.tag === formAssetTag);
     const newReq: MaintenanceRequest = {
       id: `req-${Date.now()}`,
       assetTag: formAssetTag,
@@ -298,11 +322,24 @@ export default function MaintenanceScreen() {
   };
 
   // Group requests by status for Kanban layout
-  const pendingRequests = requests.filter(r => r.status === "Pending");
-  const approvedRequests = requests.filter(r => r.status === "Approved");
-  const techAssignedRequests = requests.filter(r => r.status === "Technician Assigned");
-  const inProgressRequests = requests.filter(r => r.status === "In Progress");
-  const resolvedRequests = requests.filter(r => r.status === "Resolved");
+  const filteredRequestsList = useMemo(() => {
+    return requests.filter(r => {
+      if (searchQuery.trim() === "") return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        r.assetTag.toLowerCase().includes(query) ||
+        r.assetName.toLowerCase().includes(query) ||
+        r.description.toLowerCase().includes(query) ||
+        (r.technician && r.technician.toLowerCase().includes(query))
+      );
+    });
+  }, [requests, searchQuery]);
+
+  const pendingRequests = filteredRequestsList.filter(r => r.status === "Pending");
+  const approvedRequests = filteredRequestsList.filter(r => r.status === "Approved");
+  const techAssignedRequests = filteredRequestsList.filter(r => r.status === "Technician Assigned");
+  const inProgressRequests = filteredRequestsList.filter(r => r.status === "In Progress");
+  const resolvedRequests = filteredRequestsList.filter(r => r.status === "Resolved");
 
   return (
     <div className="min-h-screen flex bg-[#ffffff] text-slate-800 font-sans">
@@ -314,7 +351,7 @@ export default function MaintenanceScreen() {
         <div className="max-w-7xl mx-auto space-y-8 flex-1 flex flex-col w-full">
           
           {/* Header */}
-          <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
+          <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
             <div>
               <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-odoo-50 border border-odoo-100 flex items-center justify-center">
@@ -322,18 +359,31 @@ export default function MaintenanceScreen() {
                 </div>
                 Maintenance Management
               </h1>
-              <p className="text-slate-500 text-sm mt-2">
+              <p className="text-slate-550 text-sm mt-2">
                 Route asset repairs through an approval and technician tracking workflow.
               </p>
             </div>
 
-            <button
-              onClick={() => setIsRequestModalOpen(true)}
-              className="bg-odoo-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-odoo-700 transition-all shadow-md shadow-odoo-600/20 flex items-center justify-center gap-2 self-start sm:self-auto cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              Raise Request
-            </button>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              {/* Search Bar */}
+              <div className="relative">
+                <input 
+                  type="text"
+                  placeholder="🔍 Search tickets..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-odoo-500 transition-all font-semibold w-full sm:w-64"
+                />
+              </div>
+
+              <button
+                onClick={() => setIsRequestModalOpen(true)}
+                className="bg-odoo-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-odoo-700 transition-all shadow-md shadow-odoo-600/20 flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4" />
+                Raise Request
+              </button>
+            </div>
           </header>
 
           {/* Kanban Board Container */}
@@ -524,7 +574,7 @@ export default function MaintenanceScreen() {
                       onChange={(e) => setFormAssetTag(e.target.value)}
                       className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-odoo-500 bg-slate-50 focus:bg-white transition-colors font-semibold text-slate-900"
                     >
-                      {PRESET_ASSETS.map(asset => (
+                      {dynamicAssets.map(asset => (
                         <option key={asset.tag} value={asset.tag}>
                           {asset.tag} — {asset.name}
                         </option>
@@ -807,6 +857,15 @@ function MaintenanceCard({ request, onAction, onReject, actionLabel, rejectLabel
     Low: "bg-blue-50 text-blue-700 border-blue-100"
   };
 
+  // Simulated AI Urgency rating
+  const urgencyScore = useMemo(() => {
+    let base = 35;
+    if (request.priority === "High") base = 85;
+    else if (request.priority === "Medium") base = 60;
+    base += Math.min(request.description.length * 0.2, 10);
+    return Math.min(Math.round(base), 99);
+  }, [request.priority, request.description]);
+
   return (
     <motion.div
       layoutId={request.id}
@@ -845,9 +904,21 @@ function MaintenanceCard({ request, onAction, onReject, actionLabel, rejectLabel
         </div>
       )}
 
+      {/* AI Urgency Rating */}
+      <div className="flex items-center justify-between text-[10px] bg-slate-50 px-2 py-1 rounded-lg border border-slate-100 mt-1">
+        <span className="text-slate-500 font-bold flex items-center gap-1">
+          🤖 AI Urgency Score
+        </span>
+        <span className={`font-extrabold ${
+          urgencyScore > 80 ? "text-red-700" : urgencyScore > 50 ? "text-amber-600" : "text-blue-700"
+        }`}>
+          {urgencyScore}%
+        </span>
+      </div>
+
       {/* Technician Assigned Badge */}
       {request.technician && (
-        <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-bold bg-slate-50 px-2 py-1 rounded-lg w-fit border border-slate-100">
+        <div className="flex items-center gap-1.5 text-[10px] text-slate-550 font-bold bg-slate-50 px-2 py-1 rounded-lg w-fit border border-slate-100">
           <User className="w-3 h-3 text-slate-400" />
           <span>Tech: {request.technician}</span>
         </div>

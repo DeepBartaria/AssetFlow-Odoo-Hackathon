@@ -12,7 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
-  Users
+  Users,
+  Search
 } from "lucide-react";
 import Sidebar from "../Sidebar";
 
@@ -103,6 +104,10 @@ export default function ResourceBookingScreen() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [focusedBookingId, setFocusedBookingId] = useState<string | null>(null);
   const [dynamicResources, setDynamicResources] = useState(RESOURCES);
+  
+  // Search & Filter States
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTypeFilter, setSelectedTypeFilter] = useState<"All" | "Room" | "Vehicle" | "Equipment">("All");
 
   // Form states
   const [formTitle, setFormTitle] = useState("");
@@ -110,6 +115,39 @@ export default function ResourceBookingScreen() {
   const [formEnd, setFormEnd] = useState("11:00");
   const [formDept, setFormDept] = useState("Engineering");
   const [formRequestor, setFormRequestor] = useState("Jane Doe");
+
+  const stats = useMemo(() => {
+    const active = bookings.filter(b => b.status !== "Cancelled" && b.status !== "Conflict");
+    const total = active.length;
+    const rooms = active.filter(b => {
+      const res = dynamicResources.find(r => r.id === b.resourceId);
+      return res?.type === "Room";
+    }).length;
+    const vehicles = active.filter(b => {
+      const res = dynamicResources.find(r => r.id === b.resourceId);
+      return res?.type === "Vehicle";
+    }).length;
+    const equip = active.filter(b => {
+      const res = dynamicResources.find(r => r.id === b.resourceId);
+      return res?.type === "Equipment";
+    }).length;
+
+    return { total, rooms, vehicles, equip };
+  }, [bookings, dynamicResources]);
+
+  const filteredResources = useMemo(() => {
+    return dynamicResources.filter(r => {
+      if (selectedTypeFilter === "All") return true;
+      return r.type === selectedTypeFilter;
+    });
+  }, [dynamicResources, selectedTypeFilter]);
+
+  // Adjust selection when filtered resource list changes
+  useEffect(() => {
+    if (filteredResources.length > 0 && !filteredResources.some(r => r.id === selectedResourceId)) {
+      setSelectedResourceId(filteredResources[0].id);
+    }
+  }, [filteredResources, selectedResourceId]);
 
   // Load and save bookings/resources
   useEffect(() => {
@@ -160,8 +198,16 @@ export default function ResourceBookingScreen() {
   }, [dynamicResources, selectedResourceId]);
 
   const activeBookings = useMemo(() => {
-    return bookings.filter(b => b.resourceId === selectedResourceId && b.date === selectedDate);
-  }, [bookings, selectedResourceId, selectedDate]);
+    return bookings.filter(b => {
+      if (b.resourceId !== selectedResourceId || b.date !== selectedDate) return false;
+      if (searchQuery.trim() === "") return true;
+      return (
+        b.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        b.requestedBy.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        b.department.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    });
+  }, [bookings, selectedResourceId, selectedDate, searchQuery]);
 
   // Convert HH:MM to minutes relative to 9:00 AM
   const parseTimeToMinutes = (timeStr: string) => {
@@ -376,20 +422,91 @@ export default function ResourceBookingScreen() {
             </button>
           </header>
 
-          {/* Selector Bar */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center bg-white p-4 border border-slate-200 rounded-2xl card-shadow">
+          {/* Statistics Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 card-shadow flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Total Bookings</p>
+                <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{stats.total}</h3>
+              </div>
+              <div className="w-10 h-10 bg-odoo-50 text-odoo-600 rounded-xl flex items-center justify-center border border-odoo-100">
+                <CalendarClock className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 card-shadow flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Rooms Booked</p>
+                <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{stats.rooms}</h3>
+              </div>
+              <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center border border-blue-100">
+                <Users className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 card-shadow flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold text-slate-455 uppercase tracking-wider">Vehicles Booked</p>
+                <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{stats.vehicles}</h3>
+              </div>
+              <div className="w-10 h-10 bg-emerald-50 text-emerald-650 rounded-xl flex items-center justify-center border border-emerald-100">
+                <Info className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 card-shadow flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Equipment Booked</p>
+                <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{stats.equip}</h3>
+              </div>
+              <div className="w-10 h-10 bg-purple-50 text-purple-655 rounded-xl flex items-center justify-center border border-purple-100">
+                <Info className="w-5 h-5" />
+              </div>
+            </div>
+          </div>
+
+          {/* Filters, Search & Selector Bar */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-white p-4 border border-slate-200 rounded-2xl card-shadow">
+            
+            {/* Type Filter */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-450">Resource Type</label>
+              <select
+                value={selectedTypeFilter}
+                onChange={(e) => setSelectedTypeFilter(e.target.value as any)}
+                className="w-full bg-slate-55 border border-slate-200 px-3 py-2 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:border-odoo-500 transition-colors"
+              >
+                <option value="All">All Types</option>
+                <option value="Room">Rooms Only</option>
+                <option value="Vehicle">Vehicles Only</option>
+                <option value="Equipment">Equipment Only</option>
+              </select>
+            </div>
+
             {/* Resource Selector */}
             <div className="space-y-1">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Resource</label>
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-450">Select Resource</label>
               <select
                 value={selectedResourceId}
                 onChange={(e) => setSelectedResourceId(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:border-odoo-500 transition-colors"
+                className="w-full bg-slate-55 border border-slate-200 px-3 py-2 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:border-odoo-500 transition-colors"
               >
-                {dynamicResources.map(r => (
+                {filteredResources.map(r => (
                   <option key={r.id} value={r.id}>{r.name} ({r.type})</option>
                 ))}
               </select>
+            </div>
+
+            {/* Search Input */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-455">Search Bookings</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search by title/requester/dept..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-slate-55 border border-slate-200 pl-8 pr-3 py-2 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:border-odoo-500 transition-colors"
+                />
+                <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-3" />
+              </div>
             </div>
 
             {/* Date Pick Picker */}
@@ -402,7 +519,7 @@ export default function ResourceBookingScreen() {
                     prev.setDate(prev.getDate() - 1);
                     setSelectedDate(prev.toISOString().split('T')[0]);
                   }}
-                  className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 transition-colors cursor-pointer"
+                  className="p-2 border border-slate-200 rounded-lg hover:bg-slate-55 text-slate-600 transition-colors cursor-pointer"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -410,7 +527,7 @@ export default function ResourceBookingScreen() {
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className="flex-1 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-sm font-semibold text-slate-900 text-center focus:outline-none focus:border-odoo-500 transition-colors"
+                  className="flex-1 bg-slate-55 border border-slate-200 px-3 py-1.5 rounded-xl text-sm font-semibold text-slate-900 text-center focus:outline-none focus:border-odoo-500 transition-colors"
                 />
                 <button 
                   onClick={() => {
@@ -418,24 +535,26 @@ export default function ResourceBookingScreen() {
                     next.setDate(next.getDate() + 1);
                     setSelectedDate(next.toISOString().split('T')[0]);
                   }}
-                  className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 transition-colors cursor-pointer"
+                  className="p-2 border border-slate-200 rounded-lg hover:bg-slate-55 text-slate-600 transition-colors cursor-pointer"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            {/* Resource Info Card */}
-            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 h-full">
-              <div className="w-9 h-9 bg-odoo-50 border border-odoo-100 rounded-lg flex items-center justify-center text-odoo-600 shrink-0">
-                <Info className="w-4 h-4" />
-              </div>
-              <div className="min-w-0 text-xs">
-                <p className="font-semibold text-slate-900 truncate">{activeResource.info}</p>
-                <p className="text-slate-500 font-medium flex items-center gap-1 mt-0.5">
-                  <Users className="w-3.5 h-3.5" /> Capacity: {activeResource.capacity}
-                </p>
-              </div>
+          </div>
+
+          {/* Active Resource Details Badge */}
+          <div className="flex items-center gap-3 p-4 bg-slate-100/50 rounded-2xl border border-slate-200 card-shadow">
+            <div className="w-10 h-10 bg-odoo-50 border border-odoo-100 rounded-xl flex items-center justify-center text-odoo-600 shrink-0">
+              <Info className="w-5 h-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-extrabold uppercase tracking-wider text-slate-450">Active Resource Details</p>
+              <h4 className="text-sm font-bold text-slate-900 mt-0.5">{activeResource.name}</h4>
+              <p className="text-slate-500 text-xs font-semibold mt-0.5">
+                {activeResource.info} · Capacity: {activeResource.capacity}
+              </p>
             </div>
           </div>
 

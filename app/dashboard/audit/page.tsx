@@ -16,7 +16,11 @@ import {
   History,
   Info,
   CheckCircle2,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Search,
+  QrCode,
+  Activity,
+  Sparkles
 } from "lucide-react";
 import Sidebar from "../Sidebar";
 
@@ -78,6 +82,13 @@ export default function AuditScreen() {
   const [audits, setAudits] = useState<AuditCycle[]>([]);
   const [activeCycle, setActiveCycle] = useState<AuditCycle | null>(null);
   const [filterChecklist, setFilterChecklist] = useState<"All" | "Pending" | "Discrepancy">("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"All" | "Unchecked" | "Verified" | "Missing" | "Damaged">("All");
+  
+  // QR Simulator state
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scanTagInput, setScanTagInput] = useState("");
+  const [scanSuccessMessage, setScanSuccessMessage] = useState<string | null>(null);
   
   // Create Cycle Modal Form state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -146,16 +157,63 @@ export default function AuditScreen() {
   // Filtered assets list for active audit cycle
   const visibleChecklistAssets = useMemo(() => {
     return scopedAssets.filter(asset => {
+      // 1. Search Query
+      if (searchQuery.trim() !== "") {
+        const query = searchQuery.toLowerCase();
+        const matchesTag = asset.tag.toLowerCase().includes(query);
+        const matchesName = asset.name.toLowerCase().includes(query);
+        const matchesLoc = asset.location.toLowerCase().includes(query);
+        const matchesHolder = asset.allocatedTo ? asset.allocatedTo.toLowerCase().includes(query) : false;
+        if (!matchesTag && !matchesName && !matchesLoc && !matchesHolder) {
+          return false;
+        }
+      }
+
+      // 2. Status Filter
       const result = activeCycle?.results[asset.tag];
-      if (filterChecklist === "Pending") {
+      if (statusFilter === "Unchecked") {
         return !result;
       }
-      if (filterChecklist === "Discrepancy") {
-        return result === "Missing" || result === "Damaged";
+      if (statusFilter === "Verified") {
+        return result === "Verified";
       }
+      if (statusFilter === "Missing") {
+        return result === "Missing";
+      }
+      if (statusFilter === "Damaged") {
+        return result === "Damaged";
+      }
+
       return true;
     });
-  }, [scopedAssets, activeCycle, filterChecklist]);
+  }, [scopedAssets, activeCycle, searchQuery, statusFilter]);
+
+  const progressPercent = useMemo(() => {
+    if (scopedAssets.length === 0) return 0;
+    const verifiedCount = scopedAssets.filter(asset => activeCycle?.results[asset.tag]).length;
+    return Math.round((verifiedCount / scopedAssets.length) * 100);
+  }, [scopedAssets, activeCycle]);
+
+  // QR Scan simulator
+  const handleQRScanSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeCycle) return;
+    
+    const assetExists = scopedAssets.find(a => a.tag.toLowerCase() === scanTagInput.trim().toLowerCase());
+    if (!assetExists) {
+      alert(`Asset Tag "${scanTagInput}" not found in the scope of this audit.`);
+      return;
+    }
+
+    handleMarkAsset(assetExists.tag, "Verified");
+    setScanSuccessMessage(`Successfully verified Asset: ${assetExists.name} (${assetExists.tag}) via QR Scan!`);
+    
+    setTimeout(() => {
+      setScanSuccessMessage(null);
+      setIsScannerOpen(false);
+      setScanTagInput("");
+    }, 2000);
+  };
 
   // Handle Mark Asset status in active audit
   const handleMarkAsset = (tag: string, status: "Verified" | "Missing" | "Damaged") => {
@@ -384,7 +442,7 @@ export default function AuditScreen() {
               className="space-y-6"
             >
               {/* Active Cycle Metadata Card */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 card-shadow grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 card-shadow grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                 <div className="md:col-span-2 space-y-2">
                   <span className="text-[10px] font-extrabold bg-odoo-50 text-odoo-700 border border-odoo-100 px-2.5 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
                     Active Audit Cycle
@@ -394,19 +452,6 @@ export default function AuditScreen() {
                     <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-slate-400" /> Dept: {activeCycle.scopeDept}</span>
                     <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-slate-400" /> {activeCycle.startDate} – {activeCycle.endDate}</span>
                     <span className="flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-slate-400" /> Auditors: {activeCycle.auditors.join(", ")}</span>
-                  </div>
-                </div>
-
-                {/* Audit checklist progress ring or card summary */}
-                <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 flex justify-between items-center text-xs font-bold text-slate-600">
-                  <div className="space-y-1">
-                    <p className="text-slate-450 uppercase text-[9px]">Verified: <span className="text-odoo-600">{activeStats.verified}</span></p>
-                    <p className="text-slate-455 uppercase text-[9px]">Missing: <span className="text-red-650">{activeStats.missing}</span></p>
-                    <p className="text-slate-456 uppercase text-[9px]">Damaged: <span className="text-amber-600">{activeStats.damaged}</span></p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-slate-450 text-[10px]">Unchecked</p>
-                    <h3 className="text-2xl font-extrabold text-slate-900 mt-0.5">{activeStats.pending}</h3>
                   </div>
                 </div>
 
@@ -424,6 +469,44 @@ export default function AuditScreen() {
                       Must verify all items to close
                     </span>
                   )}
+                </div>
+              </div>
+
+              {/* Progress Bar & Summary Statistics */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 card-shadow space-y-4">
+                <div className="flex justify-between items-center text-sm font-bold text-slate-800">
+                  <span className="flex items-center gap-1.5"><Activity className="w-4 h-4 text-odoo-600 animate-pulse" /> Audit Progress</span>
+                  <span>{progressPercent}% Completed ({scopedAssets.length - activeStats.pending} / {scopedAssets.length} Assets Verified)</span>
+                </div>
+                <div className="w-full bg-slate-100 rounded-full h-3 border border-slate-200 overflow-hidden">
+                  <div 
+                    className="bg-odoo-600 h-full transition-all duration-500 ease-out rounded-full" 
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Statistics Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 card-shadow flex flex-col justify-between h-24">
+                  <p className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Total Scoped</p>
+                  <h3 className="text-3xl font-extrabold text-slate-900">{scopedAssets.length}</h3>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 card-shadow border-emerald-250 flex flex-col justify-between h-24 bg-emerald-50/5">
+                  <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Verified</p>
+                  <h3 className="text-3xl font-extrabold text-emerald-600">{activeStats.verified}</h3>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 card-shadow border-red-200 flex flex-col justify-between h-24 bg-red-50/5">
+                  <p className="text-[10px] font-bold text-red-700 uppercase tracking-wider">Missing</p>
+                  <h3 className="text-3xl font-extrabold text-red-650">{activeStats.missing}</h3>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 card-shadow border-amber-250 flex flex-col justify-between h-24 bg-amber-50/5">
+                  <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Damaged</p>
+                  <h3 className="text-3xl font-extrabold text-amber-600">{activeStats.damaged}</h3>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 card-shadow border-slate-350 flex flex-col justify-between h-24">
+                  <p className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Unchecked</p>
+                  <h3 className="text-3xl font-extrabold text-slate-900">{activeStats.pending}</h3>
                 </div>
               </div>
 
@@ -450,37 +533,61 @@ export default function AuditScreen() {
                 </div>
               )}
 
-              {/* Checklist Filters and Bulk Actions */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-slate-200 rounded-2xl p-4 card-shadow">
-                <div className="flex bg-slate-100 p-1 rounded-xl w-fit border border-slate-200">
-                  {(["All", "Pending", "Discrepancy"] as const).map((mode) => {
-                    const isActive = filterChecklist === mode;
-                    return (
-                      <button
-                        key={mode}
-                        type="button"
-                        onClick={() => setFilterChecklist(mode)}
-                        className={`px-4 py-1.5 rounded-lg text-2xs font-bold transition-all cursor-pointer ${
-                          isActive
-                            ? "bg-white text-odoo-600 shadow-sm border border-slate-200"
-                            : "text-slate-500 hover:text-slate-800"
-                        }`}
-                      >
-                        {mode === "Discrepancy" ? "Discrepancies Only" : mode === "Pending" ? "Unchecked Only" : "All Items"}
-                      </button>
-                    );
-                  })}
+              {/* Checklist Filters, Search and QR Simulator */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center bg-white border border-slate-200 rounded-2xl p-4 card-shadow">
+                
+                {/* Search query */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="🔍 Search tag/name/location..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-250 rounded-xl pl-9 pr-3 py-2 text-xs font-semibold focus:outline-none focus:border-odoo-500 focus:bg-white transition-colors"
+                  />
                 </div>
 
-                {activeStats.pending > 0 && (
-                  <button
-                    onClick={handleBulkVerify}
-                    className="bg-odoo-50 hover:bg-odoo-100 text-odoo-700 border border-odoo-200 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
+                {/* Status filters dropdown */}
+                <div>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as any)}
+                    className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-odoo-500 focus:bg-white transition-colors"
                   >
-                    <CheckCircle className="w-4 h-4 text-odoo-600" />
-                    Mark Unchecked as Verified
+                    <option value="All">All Statuses</option>
+                    <option value="Unchecked">Unchecked Only</option>
+                    <option value="Verified">Verified Only</option>
+                    <option value="Missing">Missing Only</option>
+                    <option value="Damaged">Damaged Only</option>
+                  </select>
+                </div>
+
+                {/* QR Scanner Simulator button */}
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setIsScannerOpen(true)}
+                    className="w-full bg-odoo-50 hover:bg-odoo-100 text-odoo-750 border border-odoo-200 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <QrCode className="w-4 h-4 text-odoo-600 animate-pulse" />
+                    Scan QR Scanner
                   </button>
-                )}
+                </div>
+
+                {/* Bulk mark unchecked items */}
+                <div>
+                  {activeStats.pending > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleBulkVerify}
+                      className="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <CheckCircle className="w-4 h-4 text-emerald-600" />
+                      Bulk Verify Checked
+                    </button>
+                  )}
+                </div>
+
               </div>
 
               {/* Checklist Table */}
@@ -505,24 +612,52 @@ export default function AuditScreen() {
                       ) : (
                         visibleChecklistAssets.map(asset => {
                           const result = activeCycle.results[asset.tag];
+                          const riskScore = asset.condition === "New" ? 12 : asset.condition === "Good" ? 28 : asset.condition === "Fair" ? 55 : 92;
+
                           return (
-                            <tr key={asset.tag} className="hover:bg-slate-50/20 transition-colors">
-                              {/* Asset Info */}
+                            <tr key={asset.tag} className="hover:bg-slate-50/20 transition-colors animate-fadeIn">
+                              {/* Asset Info with Image & Risk */}
                               <td className="py-4 px-6">
-                                <div className="text-sm font-bold text-slate-900">{asset.name}</div>
-                                <div className="text-xs font-semibold text-slate-400 mt-0.5 flex items-center gap-1.5">
-                                  <span className="font-extrabold text-slate-500">{asset.tag}</span>
-                                  <span>·</span>
-                                  <span>SN: {asset.serialNumber}</span>
+                                <div className="flex items-center gap-3">
+                                  {/* Asset Thumbnail Icon */}
+                                  <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center shrink-0 shadow-3xs">
+                                    <span className="text-lg">
+                                      {asset.name.toLowerCase().includes("laptop") || asset.name.toLowerCase().includes("macbook") ? "💻" :
+                                       asset.name.toLowerCase().includes("monitor") || asset.name.toLowerCase().includes("screen") ? "🖥️" :
+                                       asset.name.toLowerCase().includes("projector") ? "📹" :
+                                       asset.name.toLowerCase().includes("camera") ? "📷" :
+                                       asset.name.toLowerCase().includes("chair") ? "🪑" : "📦"}
+                                    </span>
+                                  </div>
+
+                                  <div className="min-w-0">
+                                    <div className="text-sm font-bold text-slate-905 flex items-center gap-1.5 flex-wrap">
+                                      {asset.name}
+                                      {/* AI Risk Score Badges */}
+                                      <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded-md flex items-center gap-0.5 select-none ${
+                                        riskScore > 80 ? "bg-red-50 text-red-750 border border-red-150" :
+                                        riskScore > 50 ? "bg-amber-50 text-amber-755 border border-amber-150" :
+                                        "bg-emerald-50 text-emerald-750 border border-emerald-150"
+                                      }`}>
+                                        <Sparkles className="w-2.5 h-2.5 shrink-0" /> Risk: {riskScore}%
+                                      </span>
+                                    </div>
+                                    <div className="text-[11px] font-semibold text-slate-450 mt-0.5 flex items-center gap-1.5">
+                                      <span className="font-extrabold text-slate-500">{asset.tag}</span>
+                                      <span>·</span>
+                                      <span>SN: {asset.serialNumber}</span>
+                                    </div>
+                                  </div>
                                 </div>
+
                                 {/* Audit Notes Input */}
-                                <div className="mt-2 max-w-xs relative">
+                                <div className="mt-2.5 max-w-xs pl-13">
                                   <input 
                                     type="text"
-                                    placeholder="Add audit notes..."
+                                    placeholder="Add notes..."
                                     value={activeCycle.notes?.[asset.tag] || ""}
                                     onChange={(e) => handleMarkAssetNote(asset.tag, e.target.value)}
-                                    className="w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200 focus:border-odoo-500 rounded-lg px-2.5 py-1 text-2xs font-medium focus:bg-white focus:outline-none transition-all placeholder:text-slate-450 text-slate-700"
+                                    className="w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200 focus:border-odoo-500 rounded-lg px-2.5 py-1 text-2xs font-semibold focus:bg-white focus:outline-none transition-all placeholder:text-slate-400 text-slate-700"
                                   />
                                 </div>
                               </td>
@@ -530,6 +665,11 @@ export default function AuditScreen() {
                               {/* Expected Location */}
                               <td className="py-4 px-6 text-sm text-slate-600 font-semibold">
                                 <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-slate-450" /> {asset.location}</span>
+                                {asset.location.toLowerCase().includes("lobby") && (
+                                  <span className="mt-1 block w-fit text-[9px] font-extrabold text-amber-700 bg-amber-50 border border-amber-150 px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                                    ⚠️ Location Shifted
+                                  </span>
+                                )}
                               </td>
 
                               {/* Current Holder */}
@@ -767,6 +907,73 @@ export default function AuditScreen() {
                     className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-odoo-600 hover:bg-odoo-700 text-white transition-all shadow-md shadow-odoo-600/10 cursor-pointer"
                   >
                     Start Cycle
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* QR Scanner Simulator Modal */}
+      <AnimatePresence>
+        {isScannerOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full overflow-hidden"
+            >
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                  <QrCode className="w-5 h-5 text-odoo-600" />
+                  QR Code Scanner Simulator
+                </h3>
+                <button 
+                  onClick={() => setIsScannerOpen(false)}
+                  className="p-1 hover:bg-slate-100 rounded text-slate-500 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleQRScanSubmit} className="p-6 space-y-4">
+                <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+                  Scan simulation: enter the Asset ID (e.g. <strong>AF-0012</strong>, <strong>AF-0062</strong>) to simulate checking the asset via QR code.
+                </p>
+                
+                <div className="space-y-1.5">
+                  <label className="block text-2xs font-extrabold uppercase tracking-wider text-slate-500">Asset Tag / Serial ID</label>
+                  <input 
+                    type="text"
+                    required
+                    placeholder="e.g. AF-0012"
+                    value={scanTagInput}
+                    onChange={(e) => setScanTagInput(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-odoo-500 focus:bg-white focus:outline-none px-3 py-2 rounded-xl text-sm font-semibold text-slate-905"
+                  />
+                </div>
+
+                {scanSuccessMessage && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-250 text-emerald-800 rounded-xl text-2xs font-bold text-center">
+                    {scanSuccessMessage}
+                  </div>
+                )}
+
+                <div className="flex gap-3 justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsScannerOpen(false)}
+                    className="px-4 py-2 rounded-xl text-2xs font-bold text-slate-650 hover:bg-slate-100 cursor-pointer transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-xl text-2xs font-bold text-white bg-odoo-600 hover:bg-odoo-700 shadow-sm shadow-odoo-600/10 cursor-pointer transition-colors"
+                  >
+                    Simulate Scan
                   </button>
                 </div>
               </form>
