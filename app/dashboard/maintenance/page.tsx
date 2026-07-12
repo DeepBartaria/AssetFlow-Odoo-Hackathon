@@ -18,6 +18,7 @@ import {
   Search
 } from "lucide-react";
 import Sidebar from "../Sidebar";
+import { apiRequest } from "../../../lib/api";
 
 interface MaintenanceRequest {
   id: string;
@@ -123,40 +124,49 @@ export default function MaintenanceScreen() {
       try {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setRequests(parsed);
+          setTimeout(() => setRequests(parsed), 0);
         } else {
-          setRequests(INITIAL_REQUESTS);
-          localStorage.setItem("assetflow_maintenance_requests", JSON.stringify(INITIAL_REQUESTS));
+          setTimeout(() => {
+            setRequests(INITIAL_REQUESTS);
+            localStorage.setItem("assetflow_maintenance_requests", JSON.stringify(INITIAL_REQUESTS));
+          }, 0);
         }
-      } catch (e) {
-        setRequests(INITIAL_REQUESTS);
+      } catch {
+        setTimeout(() => setRequests(INITIAL_REQUESTS), 0);
       }
     } else {
-      setRequests(INITIAL_REQUESTS);
-      localStorage.setItem("assetflow_maintenance_requests", JSON.stringify(INITIAL_REQUESTS));
+      setTimeout(() => {
+        setRequests(INITIAL_REQUESTS);
+        localStorage.setItem("assetflow_maintenance_requests", JSON.stringify(INITIAL_REQUESTS));
+      }, 0);
     }
 
-    const storedAssets = localStorage.getItem("assetflow_assets");
-    if (storedAssets) {
+    const fetchAssets = async () => {
       try {
-        const parsedAssets = JSON.parse(storedAssets);
-        const mappedAssets = parsedAssets.map((a: any) => ({
-          tag: a.tag,
+        const res = await apiRequest("/api/assets");
+        const list = res.data || res || [];
+        const mappedAssets = list.map((a: { assetTag: string; name: string }) => ({
+          tag: a.assetTag,
           name: a.name
         }));
         
         const allAssets = [...PRESET_ASSETS];
-        mappedAssets.forEach((ma: any) => {
+        mappedAssets.forEach((ma: { tag: string; name: string }) => {
           if (!allAssets.some(pa => pa.tag === ma.tag)) {
             allAssets.push(ma);
           }
         });
-        setDynamicAssets(allAssets);
-        if (allAssets.length > 0) {
-          setFormAssetTag(allAssets[0].tag);
-        }
-      } catch (e) {}
-    }
+        setTimeout(() => {
+          setDynamicAssets(allAssets);
+          if (allAssets.length > 0) {
+            setFormAssetTag(allAssets[0].tag);
+          }
+        }, 0);
+      } catch (e) {
+        // ignore
+      }
+    };
+    fetchAssets();
   }, []);
 
   const saveRequests = (updatedList: MaintenanceRequest[]) => {
@@ -195,7 +205,7 @@ export default function MaintenanceScreen() {
     setUploadedPhotoUrl(null);
   };
 
-  const handleApprove = (id: string) => {
+  const handleApprove = async (id: string) => {
     const updated = requests.map(req => {
       if (req.id === id) {
         return { ...req, status: "Approved" as const };
@@ -204,35 +214,27 @@ export default function MaintenanceScreen() {
     });
     saveRequests(updated);
 
-    // Dynamic flip status of asset in assets localStorage
+    // Dynamic flip status of asset in database
     try {
-      const storedAssets = localStorage.getItem("assetflow_assets");
-      if (storedAssets) {
-        const parsedAssets = JSON.parse(storedAssets);
-        const req = requests.find(r => r.id === id);
-        if (req) {
-          const updatedAssets = parsedAssets.map((asset: any) => {
-            if (asset.tag === req.assetTag) {
-              return { 
-                ...asset, 
-                status: "Under Maintenance",
-                history: [
-                  {
-                    type: "StatusChange",
-                    date: new Date().toISOString().split("T")[0],
-                    details: "Status changed to Under Maintenance (Repair approved)",
-                    actor: "Jane Doe (Asset Manager)"
-                  },
-                  ...asset.history
-                ]
-              };
-            }
-            return asset;
+      const req = requests.find(r => r.id === id);
+      if (req) {
+        const assetsRes = await apiRequest("/api/assets");
+        const list = assetsRes.data || assetsRes || [];
+        const asset = list.find((a: { _id: string; assetTag?: string; tag?: string }) => (a.assetTag || a.tag) === req.assetTag);
+        if (asset) {
+          await apiRequest(`/api/assets/${asset._id}`, {
+            method: "PUT",
+            body: JSON.stringify({
+              status: "Under Maintenance",
+              remarks: "Status changed to Under Maintenance (Repair approved)",
+              performedBy: "Jane Doe (Asset Manager)"
+            })
           });
-          localStorage.setItem("assetflow_assets", JSON.stringify(updatedAssets));
         }
       }
-    } catch (err) {}
+    } catch (err) {
+      // ignore
+    }
   };
 
   const handleOpenAssign = (id: string) => {
@@ -274,7 +276,7 @@ export default function MaintenanceScreen() {
     setIsResolveModalOpen(true);
   };
 
-  const handleResolve = () => {
+  const handleResolve = async () => {
     if (!selectedReqId) return;
     const today = new Date();
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -297,35 +299,27 @@ export default function MaintenanceScreen() {
     setSafetyCheck(false);
     setFunctionalCheck(false);
 
-    // Revert status of asset back to Available in assets localStorage
+    // Revert status of asset back to Available in database
     try {
-      const storedAssets = localStorage.getItem("assetflow_assets");
-      if (storedAssets) {
-        const parsedAssets = JSON.parse(storedAssets);
-        const req = requests.find(r => r.id === selectedReqId);
-        if (req) {
-          const updatedAssets = parsedAssets.map((asset: any) => {
-            if (asset.tag === req.assetTag) {
-              return { 
-                ...asset, 
-                status: "Available",
-                history: [
-                  {
-                    type: "StatusChange",
-                    date: new Date().toISOString().split("T")[0],
-                    details: `Status reverted to Available (Repair resolved. Notes: ${resolutionNotes})`,
-                    actor: "Jane Doe (Asset Manager)"
-                  },
-                  ...asset.history
-                ]
-              };
-            }
-            return asset;
+      const req = requests.find(r => r.id === selectedReqId);
+      if (req) {
+        const assetsRes = await apiRequest("/api/assets");
+        const list = assetsRes.data || assetsRes || [];
+        const asset = list.find((a: { _id: string; assetTag?: string; tag?: string }) => (a.assetTag || a.tag) === req.assetTag);
+        if (asset) {
+          await apiRequest(`/api/assets/${asset._id}`, {
+            method: "PUT",
+            body: JSON.stringify({
+              status: "Available",
+              remarks: `Status reverted to Available (Repair resolved. Notes: ${resolutionNotes})`,
+              performedBy: "Jane Doe (Asset Manager)"
+            })
           });
-          localStorage.setItem("assetflow_assets", JSON.stringify(updatedAssets));
         }
       }
-    } catch (err) {}
+    } catch (err) {
+      // ignore
+    }
 
     setIsResolveModalOpen(false);
     setSelectedReqId(null);
@@ -541,7 +535,7 @@ export default function MaintenanceScreen() {
           <div className="flex items-center gap-3 p-4 bg-odoo-50 border border-odoo-100 rounded-2xl text-odoo-900 shrink-0 card-shadow">
             <Info className="w-5 h-5 text-odoo-600 shrink-0" />
             <p className="text-xs font-bold leading-relaxed">
-              Workflow Note: Approving a card moves the asset to 'Under Maintenance', and resolving the card returns it to 'Available'.
+              Workflow Note: Approving a card moves the asset to &apos;Under Maintenance&apos;, and resolving the card returns it to &apos;Available&apos;.
             </p>
           </div>
 

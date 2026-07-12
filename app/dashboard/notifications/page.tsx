@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell,
@@ -18,8 +18,19 @@ import {
   History,
 } from "lucide-react";
 import Sidebar from "../Sidebar";
+import { apiRequest } from "../../../lib/api";
 
 type View = "notifications" | "activity";
+
+function formatTime(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
 
 type Category = "alerts" | "approvals" | "bookings";
 type Filter = "All" | "Alerts" | "Approvals" | "Bookings";
@@ -36,7 +47,7 @@ const TONES: Record<Tone, { dot: string; chip: string }> = {
 };
 
 interface NotificationItem {
-  id: number;
+  id: string;
   text: string;
   time: string;
   category: Category;
@@ -44,15 +55,6 @@ interface NotificationItem {
   icon: React.ElementType;
   read: boolean;
 }
-
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  { id: 1, text: "Laptop AF-0014 assigned to Priya Shah", time: "2m ago", category: "alerts", tone: "sky", icon: UserCheck, read: false },
-  { id: 2, text: "Maintenance request AF-0055 approved", time: "18m ago", category: "approvals", tone: "odoo", icon: Wrench, read: false },
-  { id: 3, text: "Booking confirmed : Room B2 : 2:00 to 3:00 PM", time: "1h ago", category: "bookings", tone: "sky", icon: CalendarClock, read: false },
-  { id: 4, text: "Transfer approved : AF-0033 to facilities dept", time: "3h ago", category: "approvals", tone: "rose", icon: ArrowRightLeft, read: true },
-  { id: 5, text: "Overdue return : AF-0021 was due 3 days ago", time: "1d ago", category: "alerts", tone: "amber", icon: Clock, read: true },
-  { id: 6, text: "Audit discrepancy flagged : AF-0088 damaged", time: "2d ago", category: "alerts", tone: "red", icon: ShieldAlert, read: true },
-];
 
 const FILTERS: Filter[] = ["All", "Alerts", "Approvals", "Bookings"];
 
@@ -72,27 +74,15 @@ const ACTIVITY_META: Record<
 };
 
 interface ActivityEntry {
-  id: number;
+  id: string;
   actor: string;
   initials: string;
   role: string;
   action: string;
   category: ActivityCategory;
   time: string;
+  timestamp: number;
 }
-
-const ACTIVITY_LOG: ActivityEntry[] = [
-  { id: 1, actor: "Raj Verma", initials: "RV", role: "Asset Manager", action: "allocated Laptop AF-0114 to Priya Shah (Engineering)", category: "assets", time: "2m ago" },
-  { id: 2, actor: "Priya Shah", initials: "PS", role: "Employee", action: "raised a maintenance request for Projector AF-0062", category: "maintenance", time: "25m ago" },
-  { id: 3, actor: "Rohan Mehta", initials: "RM", role: "Department Head", action: "booked Room B2 for 2:00 – 3:00 PM", category: "bookings", time: "1h ago" },
-  { id: 4, actor: "Raj Verma", initials: "RV", role: "Asset Manager", action: "approved maintenance request AF-0055", category: "maintenance", time: "2h ago" },
-  { id: 5, actor: "Aditi Rao", initials: "AR", role: "Department Head", action: "approved transfer of AF-0033 to Facilities dept", category: "transfers", time: "3h ago" },
-  { id: 6, actor: "Meera Nair", initials: "MN", role: "Admin", action: "promoted Arjun Nair to Asset Manager", category: "org", time: "5h ago" },
-  { id: 7, actor: "Sana Iqbal", initials: "SI", role: "Auditor", action: "flagged Monitor AF-0088 as damaged in the Q3 audit", category: "audit", time: "1d ago" },
-  { id: 8, actor: "Arjun Nair", initials: "AN", role: "Employee", action: "returned Office Chair AF-0201 (condition: good)", category: "assets", time: "1d ago" },
-  { id: 9, actor: "Meera Nair", initials: "MN", role: "Admin", action: "created department \u201CField Ops (East)\u201D", category: "org", time: "2d ago" },
-  { id: 10, actor: "Priya Shah", initials: "PS", role: "Employee", action: "returned Laptop AF-0021", category: "assets", time: "2d ago" },
-];
 
 type ActivityFilter = "All" | "Assets" | "Bookings" | "Maintenance" | "Transfers" | "Audit" | "Org";
 
@@ -111,10 +101,107 @@ export default function NotificationsScreen() {
 
   // Notifications state
   const [activeFilter, setActiveFilter] = useState<Filter>("All");
-  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   // Activity log state
   const [activityFilter, setActivityFilter] = useState<ActivityCategory | "all">("all");
+  const [activityLog, setActivityLog] = useState<ActivityEntry[]>([]);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await apiRequest("/api/notifications");
+      const list = res.data || res || [];
+      const mapped = list.map((n: { _id: string; type: string; title: string; message: string; read: boolean; createdAt: string }) => {
+        let Icon = UserCheck;
+        let tone: Tone = "sky";
+        const titleL = (n.title || "").toLowerCase();
+        if (titleL.includes("maintenance") || titleL.includes("wrench")) {
+          Icon = Wrench;
+          tone = "odoo";
+        } else if (titleL.includes("transfer") || titleL.includes("arrow")) {
+          Icon = ArrowRightLeft;
+          tone = "rose";
+        } else if (titleL.includes("overdue") || titleL.includes("clock")) {
+          Icon = Clock;
+          tone = "amber";
+        } else if (titleL.includes("discrepancy") || titleL.includes("alert")) {
+          Icon = ShieldAlert;
+          tone = "red";
+        }
+
+        return {
+          id: n._id,
+          text: n.message || "",
+          time: formatTime(n.createdAt),
+          category: (titleL.includes("booking") ? "bookings" : titleL.includes("transfer") || titleL.includes("approve") ? "approvals" : "alerts") as Category,
+          tone,
+          icon: Icon,
+          read: n.read || false
+        };
+      });
+      setTimeout(() => setNotifications(mapped), 0);
+    } catch {
+      // ignore
+    }
+  };
+
+  const fetchActivityLog = async () => {
+    try {
+      const res = await apiRequest("/api/assets");
+      const assets = res.data || res || [];
+      const logs: ActivityEntry[] = [];
+      assets.forEach((asset: { _id: string; assetTag?: string; tag?: string; history?: { type: string; details: string; actor?: string; date?: string }[] }) => {
+        if (asset.history && Array.isArray(asset.history)) {
+          asset.history.forEach((h: { type: string; details: string; actor?: string; date?: string }, idx: number) => {
+            const actorName = h.actor || "Jane Doe";
+            const initials = actorName
+              .trim()
+              .split(/\s+/)
+              .map((n: string) => n[0])
+              .join("")
+              .toUpperCase()
+              .slice(0, 2);
+
+            let category: ActivityCategory = "assets";
+            if (h.type === "Maintenance" || h.details?.toLowerCase().includes("maintenance")) {
+              category = "maintenance";
+            } else if (h.type === "Allocation" || h.details?.toLowerCase().includes("allocation") || h.details?.toLowerCase().includes("checkout")) {
+              category = "assets";
+            } else if (h.details?.toLowerCase().includes("transfer")) {
+              category = "transfers";
+            } else if (h.type === "Audit" || h.details?.toLowerCase().includes("audit")) {
+              category = "audit";
+            } else if (h.type === "Registration" || h.details?.toLowerCase().includes("register")) {
+              category = "org";
+            }
+
+            logs.push({
+              id: `${asset._id}-${idx}`,
+              actor: actorName,
+              initials,
+              role: "System Actor",
+              action: `${h.type}: ${h.details} (${asset.assetTag || asset.tag || "Asset"})`,
+              category,
+              time: h.date ? formatTime(h.date) : "Just now",
+              timestamp: h.date ? new Date(h.date).getTime() : 0
+            });
+          });
+        }
+      });
+      // Sort by date descending
+      logs.sort((a, b) => b.timestamp - a.timestamp);
+      setTimeout(() => setActivityLog(logs.slice(0, 15)), 0);
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    setTimeout(() => {
+      fetchNotifications();
+      fetchActivityLog();
+    }, 0);
+  }, []);
 
   const counts = useMemo(() => {
     return {
@@ -133,21 +220,42 @@ export default function NotificationsScreen() {
   }, [activeFilter, notifications]);
 
   const activityCounts = useMemo(() => {
-    const map: Record<string, number> = { all: ACTIVITY_LOG.length };
-    for (const e of ACTIVITY_LOG) map[e.category] = (map[e.category] ?? 0) + 1;
+    const map: Record<string, number> = { all: activityLog.length };
+    for (const e of activityLog) map[e.category] = (map[e.category] ?? 0) + 1;
     return map;
-  }, []);
+  }, [activityLog]);
 
   const visibleActivity = useMemo(() => {
-    if (activityFilter === "all") return ACTIVITY_LOG;
-    return ACTIVITY_LOG.filter((e) => e.category === activityFilter);
-  }, [activityFilter]);
+    if (activityFilter === "all") return activityLog;
+    return activityLog.filter((e) => e.category === activityFilter);
+  }, [activityFilter, activityLog]);
 
-  const markAllRead = () =>
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const markAllRead = async () => {
+    try {
+      await apiRequest("/api/notifications", {
+        method: "PUT"
+      });
+      await fetchNotifications();
+    } catch {
+      // ignore
+    }
+  };
 
-  const toggleRead = (id: number) =>
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: !n.read } : n)));
+  const toggleRead = async (id: string) => {
+    const notif = notifications.find((n) => n.id === id);
+    if (!notif) return;
+    try {
+      await apiRequest(`/api/notifications/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          read: !notif.read
+        })
+      });
+      await fetchNotifications();
+    } catch {
+      // ignore
+    }
+  };
 
   return (
     <div className="min-h-screen flex bg-[#ffffff] text-slate-800">

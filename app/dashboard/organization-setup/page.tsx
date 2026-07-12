@@ -12,33 +12,13 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Sidebar from "../Sidebar";
+import { apiRequest } from "../../../lib/api";
 
-// Mock data representing the departments exactly as requested in specifications
-const INITIAL_DEPARTMENTS_DATA = [
-  { id: 1, name: "Engineering", head: "Aditi Rao", headInitials: "AR", parent: "—", status: "Active" as const },
-  { id: 2, name: "Facilities", head: "Rohan Mehta", headInitials: "RM", parent: "—", status: "Active" as const },
-  { id: 3, name: "Field Ops (East)", head: "Sana Iqbal", headInitials: "SI", parent: "Field Ops", status: "Inactive" as const },
-];
-
-// Mock data representing the categories exactly as requested in specifications
-const INITIAL_CATEGORIES_DATA = [
-  { id: 1, name: "Electronics", description: "Laptops, desktops, printers and monitors", warranty: 24, status: "Active" as const },
-  { id: 2, name: "Furniture", description: "Office furniture", warranty: 12, status: "Active" as const },
-  { id: 3, name: "Vehicles", description: "Cars and transport", warranty: 36, status: "Inactive" as const },
-];
-
-// Mock data representing the employees exactly as requested in specifications
-const INITIAL_EMPLOYEES_DATA = [
-  { id: 1, name: "Ankit Mishra", email: "ankit@example.com", department: "Engineering", role: "Employee", status: "Active" as const },
-  { id: 2, name: "Priya Shah", email: "priya@example.com", department: "Facilities", role: "Department Head", status: "Active" as const },
-  { id: 3, name: "Rahul Patel", email: "rahul@example.com", department: "Finance", role: "Asset Manager", status: "Inactive" as const },
-];
-
+// Reusable Status Badge Component
 interface StatusBadgeProps {
   status: "Active" | "Inactive";
 }
 
-// Reusable Status Badge Component
 export function StatusBadge({ status }: StatusBadgeProps) {
   const isActive = status === "Active";
   return (
@@ -63,85 +43,108 @@ interface Toast {
 export default function OrganizationSetupScreen() {
   const [activeTab, setActiveTab] = useState<"Departments" | "Categories" | "Employee">("Departments");
   
+  // Toasts state for showing success messages
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  // Trigger toast notifications
+  const showToast = (message: string) => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3000);
+  };
+
+  // Helper to extract initials from a full name
+  const getInitials = (name: string) => {
+    return name
+      .trim()
+      .split(/\s+/)
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   // 1. Departments stored in React State
-  const [departments, setDepartments] = useState(INITIAL_DEPARTMENTS_DATA);
+  const [departments, setDepartments] = useState<{ id: string; _id: string; name: string; head: string; parent: string; status: "Active" | "Inactive"; headInitials: string }[]>([]);
 
   // 2. Categories stored in React State
-  const [categories, setCategories] = useState(INITIAL_CATEGORIES_DATA);
+  const [categories, setCategories] = useState<{ id: string; _id: string; name: string; description: string; warranty: number; status: "Active" | "Inactive" }[]>([]);
 
   // 3. Employees stored in React State
-  const [employees, setEmployees] = useState(INITIAL_EMPLOYEES_DATA);
+  const [employees, setEmployees] = useState<{ id: string; _id: string; name: string; email: string; department: string; role: string; status: "Active" | "Inactive" }[]>([]);
 
-  // Load from localStorage on mount
+  const fetchDepartments = async () => {
+    try {
+      const res = await apiRequest("/api/departments");
+      const mapped = (res.data || res || []).map((d: { _id: string; name: string; head: string; parentDepartment?: string; status: "Active" | "Inactive" }) => ({
+        ...d,
+        id: d._id,
+        parent: d.parentDepartment || "—",
+        headInitials: getInitials(d.head)
+      }));
+      setTimeout(() => setDepartments(mapped), 0);
+    } catch (err: unknown) {
+      const errorMsg = (err as { message?: string }).message || "Failed to load departments.";
+      showToast(errorMsg);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const res = await apiRequest("/api/categories");
+      const mapped = (res.data || res || []).map((c: { _id: string; name: string; description: string; warrantyPeriod: number; status: "Active" | "Inactive" }) => ({
+        ...c,
+        id: c._id,
+        warranty: c.warrantyPeriod
+      }));
+      setTimeout(() => setCategories(mapped), 0);
+    } catch (err: unknown) {
+      const errorMsg = (err as { message?: string }).message || "Failed to load categories.";
+      showToast(errorMsg);
+    }
+  };
+
+  const fetchEmployees = async () => {
+    try {
+      const res = await apiRequest("/api/employees");
+      const mapped = (res.data || res || []).map((emp: { _id: string; name: string; email: string; department: string | { name: string }; role: string; status: "Active" | "Inactive" }) => ({
+        ...emp,
+        id: emp._id,
+        department: emp.department && typeof emp.department === "object" ? emp.department.name : emp.department
+      }));
+      setTimeout(() => setEmployees(mapped), 0);
+    } catch (err: unknown) {
+      const errorMsg = (err as { message?: string }).message || "Failed to load employees.";
+      showToast(errorMsg);
+    }
+  };
+
+  // Load from database on mount
   useEffect(() => {
-    const storedDepts = localStorage.getItem("assetflow_departments");
-    if (storedDepts) {
-      try {
-        const parsed = JSON.parse(storedDepts);
-        setTimeout(() => setDepartments(parsed), 0);
-      } catch {}
-    } else {
-      localStorage.setItem("assetflow_departments", JSON.stringify(INITIAL_DEPARTMENTS_DATA));
-    }
-
-    const storedCats = localStorage.getItem("assetflow_categories");
-    if (storedCats) {
-      try {
-        const parsed = JSON.parse(storedCats);
-        setTimeout(() => setCategories(parsed), 0);
-      } catch {}
-    } else {
-      localStorage.setItem("assetflow_categories", JSON.stringify(INITIAL_CATEGORIES_DATA));
-    }
-
-    const storedEmps = localStorage.getItem("assetflow_employees");
-    if (storedEmps) {
-      try {
-        const parsed = JSON.parse(storedEmps);
-        setTimeout(() => setEmployees(parsed), 0);
-      } catch {}
-    } else {
-      localStorage.setItem("assetflow_employees", JSON.stringify(INITIAL_EMPLOYEES_DATA));
-    }
+    setTimeout(() => {
+      fetchDepartments();
+      fetchCategories();
+      fetchEmployees();
+    }, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const saveDepartments = (updated: typeof departments | ((prev: typeof departments) => typeof departments)) => {
-    setDepartments((prev) => {
-      const next = typeof updated === "function" ? updated(prev) : updated;
-      localStorage.setItem("assetflow_departments", JSON.stringify(next));
-      return next;
-    });
-  };
-
-  const saveCategories = (updated: typeof categories | ((prev: typeof categories) => typeof categories)) => {
-    setCategories((prev) => {
-      const next = typeof updated === "function" ? updated(prev) : updated;
-      localStorage.setItem("assetflow_categories", JSON.stringify(next));
-      return next;
-    });
-  };
-
-  const saveEmployees = (updated: typeof employees | ((prev: typeof employees) => typeof employees)) => {
-    setEmployees((prev) => {
-      const next = typeof updated === "function" ? updated(prev) : updated;
-      localStorage.setItem("assetflow_employees", JSON.stringify(next));
-      return next;
-    });
-  };
 
   // Department Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Category Modal State
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [categoryModalMode, setCategoryModalMode] = useState<"add" | "edit">("add");
-  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
 
   // Employee Modal State
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
   const [employeeModalMode, setEmployeeModalMode] = useState<"add" | "edit">("add");
-  const [editingEmployeeId, setEditingEmployeeId] = useState<number | null>(null);
+  const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
 
   // Department Modal Form States
   const [formData, setFormData] = useState({
@@ -189,28 +192,7 @@ export default function OrganizationSetupScreen() {
     role: false
   });
 
-  // Toasts state for showing success messages
-  const [toasts, setToasts] = useState<Toast[]>([]);
 
-  // Trigger toast notifications
-  const showToast = (message: string) => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, message }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3000);
-  };
-
-  // Helper to extract initials from a full name
-  const getInitials = (name: string) => {
-    return name
-      .trim()
-      .split(/\s+/)
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
 
   // Department validation rules
   const nameError = useMemo(() => {
@@ -337,7 +319,7 @@ export default function OrganizationSetupScreen() {
     setIsModalOpen(true);
   };
 
-  const handleEdit = (dept: typeof INITIAL_DEPARTMENTS_DATA[0]) => {
+  const handleEdit = (dept: { id: string; name: string; head: string; parent: string; status: "Active" | "Inactive" }) => {
     setModalMode("edit");
     setEditingId(dept.id);
     setFormData({
@@ -353,51 +335,49 @@ export default function OrganizationSetupScreen() {
     setIsModalOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!isValid) return;
 
-    if (modalMode === "add") {
-      const newDept = {
-        id: Date.now(),
+    try {
+      const payload = {
         name: formData.name.trim(),
         head: formData.head.trim(),
-        headInitials: getInitials(formData.head),
-        parent: formData.parent.trim() || "—",
+        parentDepartment: formData.parent.trim() || "—",
         status: formData.status
       };
-      saveDepartments((prev) => [...prev, newDept]);
-      showToast("Department created successfully");
-    } else {
-      saveDepartments((prev) =>
-        prev.map((d) => {
-          if (d.id === editingId) {
-            return {
-              ...d,
-              name: formData.name.trim(),
-              head: formData.head.trim(),
-              headInitials: getInitials(formData.head),
-              parent: formData.parent.trim() || "—",
-              status: formData.status
-            };
-          }
-          return d;
-        })
-      );
-      showToast("Department updated successfully");
+
+      if (modalMode === "add") {
+        await apiRequest("/api/departments", {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+        showToast("Department created successfully");
+      } else {
+        await apiRequest(`/api/departments/${editingId}`, {
+          method: "PUT",
+          body: JSON.stringify(payload)
+        });
+        showToast("Department updated successfully");
+      }
+      await fetchDepartments();
+      setIsModalOpen(false);
+    } catch (err: unknown) {
+      const errorMsg = (err as { message?: string }).message || "Error saving department";
+      showToast(errorMsg);
     }
-    setIsModalOpen(false);
   };
 
-  const handleDeactivate = (id: number) => {
-    saveDepartments((prev) =>
-      prev.map((d) => {
-        if (d.id === id) {
-          return { ...d, status: "Inactive" as const };
-        }
-        return d;
-      })
-    );
-    showToast("Department deactivated");
+  const handleDeactivate = async (id: string) => {
+    try {
+      await apiRequest(`/api/departments/${id}`, {
+        method: "DELETE"
+      });
+      showToast("Department deactivated");
+      await fetchDepartments();
+    } catch (err: unknown) {
+      const errorMsg = (err as { message?: string }).message || "Error deactivating department";
+      showToast(errorMsg);
+    }
   };
 
   // Category action handlers
@@ -418,7 +398,7 @@ export default function OrganizationSetupScreen() {
     setIsCategoryModalOpen(true);
   };
 
-  const handleCategoryEdit = (cat: typeof INITIAL_CATEGORIES_DATA[0]) => {
+  const handleCategoryEdit = (cat: { id: string; name: string; description: string; warranty: number; status: "Active" | "Inactive" }) => {
     setCategoryModalMode("edit");
     setEditingCategoryId(cat.id);
     setCategoryFormData({
@@ -435,49 +415,49 @@ export default function OrganizationSetupScreen() {
     setIsCategoryModalOpen(true);
   };
 
-  const handleCategorySave = () => {
+  const handleCategorySave = async () => {
     if (!isCategoryValid) return;
 
-    if (categoryModalMode === "add") {
-      const newCat = {
-        id: Date.now(),
+    try {
+      const payload = {
         name: categoryFormData.name.trim(),
         description: categoryFormData.description.trim(),
-        warranty: Number(categoryFormData.warranty),
+        warrantyPeriod: Number(categoryFormData.warranty),
         status: categoryFormData.status
       };
-      saveCategories((prev) => [...prev, newCat]);
-      showToast("Category created successfully");
-    } else {
-      saveCategories((prev) =>
-        prev.map((c) => {
-          if (c.id === editingCategoryId) {
-            return {
-              ...c,
-              name: categoryFormData.name.trim(),
-              description: categoryFormData.description.trim(),
-              warranty: Number(categoryFormData.warranty),
-              status: categoryFormData.status
-            };
-          }
-          return c;
-        })
-      );
-      showToast("Category updated successfully");
+
+      if (categoryModalMode === "add") {
+        await apiRequest("/api/categories", {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+        showToast("Category created successfully");
+      } else {
+        await apiRequest(`/api/categories/${editingCategoryId}`, {
+          method: "PUT",
+          body: JSON.stringify(payload)
+        });
+        showToast("Category updated successfully");
+      }
+      await fetchCategories();
+      setIsCategoryModalOpen(false);
+    } catch (err: unknown) {
+      const errorMsg = (err as { message?: string }).message || "Error saving category";
+      showToast(errorMsg);
     }
-    setIsCategoryModalOpen(false);
   };
 
-  const handleCategoryDeactivate = (id: number) => {
-    saveCategories((prev) =>
-      prev.map((c) => {
-        if (c.id === id) {
-          return { ...c, status: "Inactive" as const };
-        }
-        return c;
-      })
-    );
-    showToast("Category deactivated successfully");
+  const handleCategoryDeactivate = async (id: string) => {
+    try {
+      await apiRequest(`/api/categories/${id}`, {
+        method: "DELETE"
+      });
+      showToast("Category deactivated successfully");
+      await fetchCategories();
+    } catch (err: unknown) {
+      const errorMsg = (err as { message?: string }).message || "Error deactivating category";
+      showToast(errorMsg);
+    }
   };
 
   // Employee action handlers
@@ -500,7 +480,7 @@ export default function OrganizationSetupScreen() {
     setIsEmployeeModalOpen(true);
   };
 
-  const handleEmployeeEdit = (emp: typeof INITIAL_EMPLOYEES_DATA[0]) => {
+  const handleEmployeeEdit = (emp: { id: string; name: string; email: string; department: string; role: string; status: "Active" | "Inactive" }) => {
     setEmployeeModalMode("edit");
     setEditingEmployeeId(emp.id);
     setEmployeeFormData({
@@ -519,51 +499,57 @@ export default function OrganizationSetupScreen() {
     setIsEmployeeModalOpen(true);
   };
 
-  const handleEmployeeSave = () => {
+  const handleEmployeeSave = async () => {
     if (!isEmployeeValid) return;
 
-    if (employeeModalMode === "add") {
-      const newEmp = {
-        id: Date.now(),
+    try {
+      // Find department ID by name
+      const deptDoc = departments.find(d => d.name === employeeFormData.department);
+      if (!deptDoc) {
+        showToast("Selected department is invalid.");
+        return;
+      }
+
+      const payload = {
         name: employeeFormData.name.trim(),
         email: employeeFormData.email.trim(),
-        department: employeeFormData.department,
+        department: deptDoc._id || deptDoc.id,
         role: employeeFormData.role,
         status: employeeFormData.status
       };
-      saveEmployees((prev) => [...prev, newEmp]);
-      showToast("Employee created successfully");
-    } else {
-      saveEmployees((prev) =>
-        prev.map((emp) => {
-          if (emp.id === editingEmployeeId) {
-            return {
-              ...emp,
-              name: employeeFormData.name.trim(),
-              email: employeeFormData.email.trim(),
-              department: employeeFormData.department,
-              role: employeeFormData.role,
-              status: employeeFormData.status
-            };
-          }
-          return emp;
-        })
-      );
-      showToast("Employee updated successfully");
+
+      if (employeeModalMode === "add") {
+        await apiRequest("/api/employees", {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+        showToast("Employee created successfully");
+      } else {
+        await apiRequest(`/api/employees/${editingEmployeeId}`, {
+          method: "PUT",
+          body: JSON.stringify(payload)
+        });
+        showToast("Employee updated successfully");
+      }
+      await fetchEmployees();
+      setIsEmployeeModalOpen(false);
+    } catch (err: unknown) {
+      const errorMsg = (err as { message?: string }).message || "Error saving employee";
+      showToast(errorMsg);
     }
-    setIsEmployeeModalOpen(false);
   };
 
-  const handleEmployeeDeactivate = (id: number) => {
-    saveEmployees((prev) =>
-      prev.map((emp) => {
-        if (emp.id === id) {
-          return { ...emp, status: "Inactive" as const };
-        }
-        return emp;
-      })
-    );
-    showToast("Employee deactivated successfully");
+  const handleEmployeeDeactivate = async (id: string) => {
+    try {
+      await apiRequest(`/api/employees/${id}`, {
+        method: "DELETE"
+      });
+      showToast("Employee deactivated successfully");
+      await fetchEmployees();
+    } catch (err: unknown) {
+      const errorMsg = (err as { message?: string }).message || "Error deactivating employee";
+      showToast(errorMsg);
+    }
   };
 
   return (

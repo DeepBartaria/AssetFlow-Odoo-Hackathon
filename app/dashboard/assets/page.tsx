@@ -18,6 +18,7 @@ import {
   FileText
 } from "lucide-react";
 import Sidebar from "../Sidebar";
+import { apiRequest } from "../../../lib/api";
 
 interface HistoryEntry {
   type: "Registration" | "Allocation" | "Maintenance" | "Audit" | "StatusChange";
@@ -215,51 +216,48 @@ export default function AssetsScreen() {
 
   // Dynamic Categories from Organization Setup
   const [categoriesList, setCategoriesList] = useState<string[]>([]);
+  const [fullCategories, setFullCategories] = useState<{ _id: string; name: string; status: "Active" | "Inactive" }[]>([]);
 
   // Asset Details Sidebar Modal state
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
 
-  // Load and save localStorage
-  useEffect(() => {
-    const stored = localStorage.getItem("assetflow_assets");
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setTimeout(() => setAssets(parsed), 0);
-      } catch {
-        setTimeout(() => setAssets(DEFAULT_ASSETS), 0);
-      }
-    } else {
+  const fetchAssets = async () => {
+    try {
+      const res = await apiRequest("/api/assets");
+      const list = res.data || res || [];
+      const mapped = list.map((a: { _id: string; assetTag: string; name: string; category: string | { name: string }; serialNumber: string; acquisitionDate: string; acquisitionCost: number; condition: "New" | "Good" | "Fair" | "Poor"; location: string; status: string; sharedBookable: boolean; history: { type: string; date: string; details: string; actor: string }[] }) => ({
+        ...a,
+        id: a._id,
+        tag: a.assetTag,
+        isSharedBookable: a.sharedBookable,
+        category: a.category && typeof a.category === "object" ? a.category.name : a.category
+      }));
+      setTimeout(() => setAssets(mapped), 0);
+    } catch {
       setTimeout(() => setAssets(DEFAULT_ASSETS), 0);
-      localStorage.setItem("assetflow_assets", JSON.stringify(DEFAULT_ASSETS));
     }
-  }, []);
+  };
 
-  interface OrgCategory {
-    id: number;
-    name: string;
-    description: string;
-    warranty: number;
-    status: "Active" | "Inactive";
-  }
+  const fetchCategories = async () => {
+    try {
+      const res = await apiRequest("/api/categories");
+      const list = res.data || res || [];
+      const active = list.filter((c: { _id: string; name: string; status: "Active" | "Inactive" }) => c.status === "Active");
+      setTimeout(() => {
+        setFullCategories(active);
+        setCategoriesList(active.map((c: { name: string }) => c.name));
+      }, 0);
+    } catch {
+      // ignore
+    }
+  };
 
-  // Sync active categories from localStorage
+  // Load from database on mount
   useEffect(() => {
-    const storedCats = localStorage.getItem("assetflow_categories");
-    let activeCats: string[] = [];
-    if (storedCats) {
-      try {
-        const parsed = JSON.parse(storedCats) as OrgCategory[];
-        activeCats = parsed.filter((c) => c.status === "Active").map((c) => c.name);
-      } catch {
-        // use defaults
-      }
-    }
-    if (activeCats.length === 0) {
-      activeCats = ["Electronics", "Furniture", "Vehicles"];
-    }
-    const catsToSet = activeCats;
-    setTimeout(() => setCategoriesList(catsToSet), 0);
+    setTimeout(() => {
+      fetchAssets();
+      fetchCategories();
+    }, 0);
   }, []);
 
   // Default dropdown category to first active category
@@ -269,11 +267,6 @@ export default function AssetsScreen() {
       setTimeout(() => setRegCategory(firstCat), 0);
     }
   }, [categoriesList, regCategory]);
-
-  const saveAssetsToLocal = (updatedList: Asset[]) => {
-    setAssets(updatedList);
-    localStorage.setItem("assetflow_assets", JSON.stringify(updatedList));
-  };
 
   // Filtered assets search and filter logic
   const filteredAssets = useMemo(() => {
@@ -357,61 +350,57 @@ export default function AssetsScreen() {
   const isRegFormValid = !regNameError && !regCategoryError && !regSerialError && !regCostError && !regDateError && !regLocationError;
 
   // Handle register asset submit
-  const handleRegisterAsset = (e: React.FormEvent) => {
+  const handleRegisterAsset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isRegFormValid) return;
 
-    // Auto-generate sequential tag
-    const maxTagNum = assets.reduce((max, asset) => {
-      const num = parseInt(asset.tag.replace("AF-", ""), 10);
-      return num > max ? num : max;
-    }, 0);
-    const newTag = `AF-${String(maxTagNum + 1).padStart(4, "0")}`;
+    try {
+      const cleanCost = regCost.replace(/₹/g, "").replace(/,/g, "").trim();
+      const acquisitionCost = parseFloat(cleanCost) || 0;
 
-    const cleanCost = regCost.replace(/₹/g, "").replace(/,/g, "").trim();
-    const acquisitionCost = parseFloat(cleanCost) || 0;
+      const catDoc = fullCategories.find(c => c.name === regCategory);
+      const catId = catDoc ? catDoc._id : undefined;
 
-    const newAsset: Asset = {
-      tag: newTag,
-      name: regName.trim(),
-      category: regCategory,
-      serialNumber: regSerial.trim(),
-      acquisitionDate: regDate,
-      acquisitionCost: acquisitionCost,
-      condition: regCondition,
-      location: regLocation.trim(),
-      status: "Available",
-      isSharedBookable: regIsShared,
-      history: [
-        {
-          type: "Registration",
-          date: new Date().toISOString().split("T")[0],
-          details: `Registered asset under tag ${newTag}`,
-          actor: "Jane Doe (Asset Manager)"
-        }
-      ]
-    };
+      const payload = {
+        name: regName.trim(),
+        category: catId,
+        serialNumber: regSerial.trim(),
+        acquisitionDate: regDate,
+        acquisitionCost: acquisitionCost,
+        condition: regCondition,
+        location: regLocation.trim(),
+        status: "Available",
+        sharedBookable: regIsShared,
+        performedBy: "Jane Doe (Asset Manager)"
+      };
 
-    const updated = [newAsset, ...assets];
-    saveAssetsToLocal(updated);
-    setIsRegModalOpen(false);
+      await apiRequest("/api/assets", {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
 
-    // Reset Form
-    setRegName("");
-    setRegCategory(categoriesList[0] || "");
-    setRegSerial("");
-    setRegCost("");
-    setRegDate("");
-    setRegCondition("Good");
-    setRegLocation("");
-    setRegIsShared(false);
-    setRegTouched({
-      name: false,
-      serialNumber: false,
-      cost: false,
-      date: false,
-      location: false
-    });
+      await fetchAssets();
+      setIsRegModalOpen(false);
+
+      // Reset Form
+      setRegName("");
+      setRegCategory(categoriesList[0] || "");
+      setRegSerial("");
+      setRegCost("");
+      setRegDate("");
+      setRegCondition("Good");
+      setRegLocation("");
+      setRegIsShared(false);
+      setRegTouched({
+        name: false,
+        serialNumber: false,
+        cost: false,
+        date: false,
+        location: false
+      });
+    } catch {
+      // ignore
+    }
   };
 
   // Helper for status badge styling

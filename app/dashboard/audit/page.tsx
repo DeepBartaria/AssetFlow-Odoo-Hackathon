@@ -27,6 +27,7 @@ import {
   Package
 } from "lucide-react";
 import Sidebar from "../Sidebar";
+import { apiRequest } from "../../../lib/api";
 
 interface HistoryEntry {
   type: "Registration" | "Allocation" | "Maintenance" | "Audit" | "StatusChange";
@@ -36,6 +37,8 @@ interface HistoryEntry {
 }
 
 interface Asset {
+  _id?: string;
+  id?: string;
   tag: string;
   name: string;
   category: string;
@@ -211,40 +214,45 @@ export default function AuditScreen() {
   const [cycleAuditors, setCycleAuditors] = useState("A. Rao, S. Iqbal");
 
   // Load and save localStorage
-  useEffect(() => {
-    // Assets
-    const storedAssets = localStorage.getItem("assetflow_assets");
-    if (storedAssets) {
-      try {
-        const parsed = JSON.parse(storedAssets);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setAssets(parsed);
-        } else {
-          setAssets(DEFAULT_ASSETS);
-          localStorage.setItem("assetflow_assets", JSON.stringify(DEFAULT_ASSETS));
-        }
-      } catch (e) {
-        setAssets(DEFAULT_ASSETS);
-      }
-    } else {
-      setAssets(DEFAULT_ASSETS);
-      localStorage.setItem("assetflow_assets", JSON.stringify(DEFAULT_ASSETS));
+  const fetchAssets = async () => {
+    try {
+      const res = await apiRequest("/api/assets");
+      const list = res.data || res || [];
+      const mapped = list.map((a: { _id: string; assetTag?: string; tag?: string; sharedBookable?: boolean; isSharedBookable?: boolean; category?: string | { name: string } }) => ({
+        ...a,
+        id: a._id,
+        tag: a.assetTag || a.tag || "AF-0000",
+        isSharedBookable: a.sharedBookable || a.isSharedBookable || false,
+        category: a.category && typeof a.category === "object" ? a.category.name : (a.category || "")
+      }));
+      setTimeout(() => setAssets(mapped), 0);
+    } catch {
+      // fallback
     }
+  };
+
+  // Load and save localStorage
+  useEffect(() => {
+    fetchAssets();
     
     // Audits
     const storedAudits = localStorage.getItem("assetflow_audits");
     if (storedAudits) {
       try {
         const parsed = JSON.parse(storedAudits) as AuditCycle[];
-        setAudits(parsed);
-        const active = parsed.find(a => a.status === "Active");
-        if (active) setActiveCycle(active);
-      } catch (e) {
-        setAudits(DEFAULT_AUDITS);
+        setTimeout(() => {
+          setAudits(parsed);
+          const active = parsed.find(a => a.status === "Active");
+          if (active) setActiveCycle(active);
+        }, 0);
+      } catch {
+        setTimeout(() => setAudits(DEFAULT_AUDITS), 0);
       }
     } else {
-      setAudits(DEFAULT_AUDITS);
-      localStorage.setItem("assetflow_audits", JSON.stringify(DEFAULT_AUDITS));
+      setTimeout(() => {
+        setAudits(DEFAULT_AUDITS);
+        localStorage.setItem("assetflow_audits", JSON.stringify(DEFAULT_AUDITS));
+      }, 0);
     }
   }, []);
 
@@ -453,13 +461,13 @@ export default function AuditScreen() {
   };
 
   // Close / Lock the audit cycle and apply status transitions to assets
-  const handleCloseAuditCycle = () => {
+  const handleCloseAuditCycle = async () => {
     if (!activeCycle) return;
 
     // Apply updates to assets based on the audit results
-    const updatedAssets = assets.map(asset => {
+    const updatePromises = assets.map(async (asset) => {
       const auditResult = activeCycle.results[asset.tag];
-      if (!auditResult) return asset;
+      if (!auditResult) return;
 
       let newStatus = asset.status;
       let newCondition = asset.condition;
@@ -477,22 +485,23 @@ export default function AuditScreen() {
         detailsText = `Verified location and status during Audit Cycle.${noteText}`;
       }
 
-      const historyEntry: HistoryEntry = {
-        type: "Audit",
-        date: new Date().toISOString().split("T")[0],
-        details: `${detailsText} (${activeCycle.name})`,
-        actor: `${activeCycle.auditors.join(", ")} (Compliance Sealed by: ${auditorSignature})`
-      };
-
-      return {
-        ...asset,
-        status: newStatus,
-        condition: newCondition,
-        history: [historyEntry, ...asset.history]
-      };
+      try {
+        await apiRequest(`/api/assets/${asset._id || asset.id}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            status: newStatus,
+            condition: newCondition,
+            remarks: `${detailsText} (${activeCycle.name})`,
+            performedBy: `${activeCycle.auditors.join(", ")} (Compliance Sealed by: ${auditorSignature})`
+          })
+        });
+      } catch {
+        // ignore
+      }
     });
 
-    saveAssets(updatedAssets);
+    await Promise.all(updatePromises);
+    await fetchAssets();
 
     // Lock and update Audit Cycle status
     const closedCycle: AuditCycle = {
@@ -668,7 +677,7 @@ export default function AuditScreen() {
                         {activeStats.missing + activeStats.damaged} Assets Flagged — Discrepancy Report Generated
                       </h4>
                       <p className="text-2xs font-semibold mt-0.5 leading-relaxed text-amber-705">
-                        Auto-updates will execute when cycle closes: Missing items transition to 'Lost' state; Damaged items trigger 'Under Maintenance' diagnostics.
+                        Auto-updates will execute when cycle closes: Missing items transition to &apos;Lost&apos; state; Damaged items trigger &apos;Under Maintenance&apos; diagnostics.
                       </p>
                     </div>
                   </div>
@@ -699,7 +708,7 @@ export default function AuditScreen() {
                 <div>
                   <select
                     value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as any)}
+                    onChange={(e) => setStatusFilter(e.target.value as "All" | "Unchecked" | "Verified" | "Missing" | "Damaged")}
                     className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-odoo-500 focus:bg-white transition-colors"
                   >
                     <option value="All">All Statuses</option>
