@@ -8,7 +8,8 @@ import {
   Tag, 
   Users, 
   Briefcase,
-  X
+  X,
+  Lock
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Sidebar from "../Sidebar";
@@ -123,8 +124,14 @@ export default function OrganizationSetupScreen() {
     }
   };
 
+  const [activeRole, setActiveRole] = useState("Admin");
+
   // Load from database on mount
   useEffect(() => {
+    const role = localStorage.getItem("assetflow_active_role");
+    if (role) {
+      setActiveRole(role);
+    }
     setTimeout(() => {
       fetchDepartments();
       fetchCategories();
@@ -553,6 +560,37 @@ export default function OrganizationSetupScreen() {
       showToast(errorMsg);
     }
   };
+
+  if (activeRole !== "Admin") {
+    return (
+      <div className="min-h-screen flex bg-[#ffffff] text-slate-800 relative font-sans">
+        {/* Sidebar */}
+        <Sidebar activeItem="Organization Setup" />
+
+        {/* Main Content Access Denied Card */}
+        <main className="flex-1 p-4 sm:p-6 md:p-8 lg:p-10 overflow-y-auto bg-slate-50/50 flex items-center justify-center min-h-screen">
+          <div className="max-w-md w-full text-center space-y-4 bg-white border border-slate-200 p-8 rounded-3xl card-shadow">
+            <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center border border-rose-100 mx-auto animate-bounce">
+              <Lock className="w-6 h-6" />
+            </div>
+            <h2 className="text-lg font-bold text-slate-900">Access Denied</h2>
+            <p className="text-xs font-semibold text-slate-550 leading-relaxed">
+              You do not have the administrative privileges required to configure company hierarchy, asset categories, or employee directories.
+            </p>
+            <p className="text-[11px] font-bold text-slate-400">
+              Please switch your Active Session Role to Admin in the sidebar to access this section.
+            </p>
+            <button 
+              onClick={() => window.location.href = '/dashboard'}
+              className="bg-odoo-600 hover:bg-odoo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md shadow-odoo-600/10 inline-block"
+            >
+              Back to Dashboard
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex bg-[#ffffff] text-slate-800 relative">

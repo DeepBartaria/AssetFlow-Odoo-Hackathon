@@ -15,9 +15,13 @@ import {
   Activity,
   PackageCheck,
   AlertCircle,
+<<<<<<< HEAD
+  Lock,
+=======
   Sparkles,
   X,
   Printer
+>>>>>>> 1b75fc5f8719443f4da8700dac4f5567a7166ea5
 } from "lucide-react";
 import Sidebar from "../Sidebar";
 import { apiRequest } from "../../../lib/api";
@@ -125,6 +129,7 @@ function Panel({
 }
 
 export default function ReportsScreen() {
+  const [activeRole, setActiveRole] = useState("Admin");
   const [period, setPeriod] = useState(PERIODS[0]);
   const [kpis, setKpis] = useState(KPIS);
   const [utilization, setUtilization] = useState(UTILIZATION);
@@ -249,6 +254,10 @@ export default function ReportsScreen() {
   };
 
   useEffect(() => {
+    const role = localStorage.getItem("assetflow_active_role");
+    if (role) {
+      setActiveRole(role);
+    }
     setTimeout(() => {
       fetchReportData();
     }, 0);
@@ -287,6 +296,37 @@ export default function ReportsScreen() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+
+  if (activeRole === "Employee") {
+    return (
+      <div className="min-h-screen flex bg-[#ffffff] text-slate-800 font-sans">
+        {/* Sidebar */}
+        <Sidebar activeItem="Reports" />
+
+        {/* Main Content Access Denied Card */}
+        <main className="flex-1 p-4 sm:p-6 md:p-8 lg:p-10 overflow-y-auto bg-slate-50/50 flex items-center justify-center min-h-screen">
+          <div className="max-w-md w-full text-center space-y-4 bg-white border border-slate-200 p-8 rounded-3xl card-shadow">
+            <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center border border-rose-100 mx-auto animate-bounce">
+              <Lock className="w-6 h-6" />
+            </div>
+            <h2 className="text-lg font-bold text-slate-900">Access Denied</h2>
+            <p className="text-xs font-semibold text-slate-555 leading-relaxed">
+              Authorization Required: This section is restricted to Asset Managers and Department Heads.
+            </p>
+            <p className="text-[11px] font-bold text-slate-400">
+              Please switch your Active Session Role in the sidebar to access.
+            </p>
+            <button 
+              onClick={() => window.location.href = '/dashboard'}
+              className="bg-odoo-600 hover:bg-odoo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md shadow-odoo-600/10 inline-block"
+            >
+              Back to Dashboard
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex bg-[#ffffff] text-slate-800">

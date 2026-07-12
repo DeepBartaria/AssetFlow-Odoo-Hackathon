@@ -36,6 +36,7 @@ interface ActivityItem {
 }
 
 export default function DashboardScreen() {
+  const [activeRole, setActiveRole] = useState("Admin");
   const [metrics, setMetrics] = useState<MetricItem[]>([]);
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
 
@@ -78,6 +79,10 @@ export default function DashboardScreen() {
   };
 
   useEffect(() => {
+    const role = localStorage.getItem("assetflow_active_role");
+    if (role) {
+      setActiveRole(role);
+    }
     setTimeout(() => {
       fetchDashboard();
       fetchRecentActivity();
@@ -91,7 +96,7 @@ export default function DashboardScreen() {
       <Sidebar activeItem="Dashboard" />
 
       {/* Main Content */}
-      <main className="flex-1 p-8 lg:p-10 overflow-y-auto bg-slate-50/50">
+      <main className="flex-1 p-8 lg:p-10 overflow-y-auto bg-slate-55/50">
         <div className="max-w-6xl mx-auto space-y-10">
           
           <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -102,18 +107,29 @@ export default function DashboardScreen() {
             
             {/* Quick Actions */}
             <div className="flex flex-wrap items-center gap-3">
-              <button className="bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all card-shadow flex items-center gap-2">
+              <button 
+                onClick={() => window.location.href = '/dashboard/resource-booking'}
+                className="bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all card-shadow flex items-center gap-2 cursor-pointer"
+              >
                 <CalendarPlus className="w-4 h-4 text-slate-400" />
                 Book Resource
               </button>
-              <button className="bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all card-shadow flex items-center gap-2">
+              <button 
+                onClick={() => window.location.href = '/dashboard/maintenance'}
+                className="bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all card-shadow flex items-center gap-2 cursor-pointer"
+              >
                 <Wrench className="w-4 h-4 text-slate-400" />
                 Raise Request
               </button>
-              <button className="bg-odoo-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-odoo-700 transition-all shadow-md shadow-odoo-600/20 flex items-center gap-2">
-                <Plus className="w-4 h-4" />
-                Register Asset
-              </button>
+              {activeRole !== "Employee" && (
+                <button 
+                  onClick={() => window.location.href = '/dashboard/assets'}
+                  className="bg-odoo-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-odoo-700 transition-all shadow-md shadow-odoo-600/20 flex items-center gap-2 cursor-pointer animate-pulse"
+                >
+                  <Plus className="w-4 h-4" />
+                  Register Asset
+                </button>
+              )}
             </div>
           </header>
 
