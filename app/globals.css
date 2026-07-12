@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Enable class-based dark mode for Tailwind v4 (next-themes adds `.dark` to <html>) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ==========================================================================
    AssetFlow design system - light "Odoo" theme, codified as tokens.
    Source of truth for surfaces, borders, accent, radii and status colors.
@@ -112,4 +115,119 @@ body {
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ==========================================================================
+   DARK MODE
+   --------------------------------------------------------------------------
+   Retrofit dark styling for the dashboard without editing every page.
+   Everything is scoped to `.dark .dash-shell` so the always-dark marketing
+   and login screens (which live outside the dashboard layout) are untouched.
+   Background is pure black; borders/dividers are intentionally low-contrast
+   ("less visible" lines). Semantic status colors are left as-is.
+   ========================================================================== */
+
+.dark {
+  --background: #000000;
+  --foreground: #f8fafc;
+}
+
+.dark .dash-shell {
+  /* Layered dark surfaces so cards stay distinguishable on a black page */
+  --dm-page: #000000;      /* outer page / main scroll area          */
+  --dm-rail: #0a0a0c;      /* sidebar rail                            */
+  --dm-surface: #131317;   /* cards, panels, buttons (was bg-white)   */
+  --dm-surface-2: #1b1b21; /* inputs, muted fills (was bg-slate-50)   */
+  --dm-surface-3: #26262d; /* stronger fills (was bg-slate-200/300)   */
+  --dm-line: rgba(255, 255, 255, 0.08); /* subtle, less-visible lines */
+  --dm-line-hover: rgba(255, 255, 255, 0.16);
+
+  --dm-text: #f8fafc;      /* headings                                */
+  --dm-text-2: #e2e8f0;    /* strong body                             */
+  --dm-text-3: #cbd5e1;    /* body                                    */
+  --dm-text-4: #aab2c0;    /* secondary                               */
+  --dm-text-5: #949dac;    /* muted labels                            */
+  --dm-text-6: #7f8896;    /* faint                                   */
+
+  color: var(--dm-text-2);
+}
+
+/* ---- Page / rail / main backgrounds ------------------------------------ */
+.dark .dash-shell .bg-\[\#ffffff\],
+.dark .dash-shell .bg-slate-50\/50,
+.dark .dash-shell .bg-slate-55\/50 { background-color: var(--dm-page) !important; }
+
+.dark .dash-shell .bg-\[\#f8fafc\] { background-color: var(--dm-rail) !important; }
+
+/* ---- Card / panel / button surfaces ------------------------------------ */
+.dark .dash-shell .bg-white,
+.dark .dash-shell .focus\:bg-white:focus { background-color: var(--dm-surface) !important; }
+
+/* ---- Muted fills (inputs, chips, hovers) ------------------------------- */
+.dark .dash-shell .bg-slate-50,
+.dark .dash-shell .bg-slate-55,
+.dark .dash-shell .bg-slate-100,
+.dark .dash-shell .bg-slate-100\/75 { background-color: var(--dm-surface-2) !important; }
+
+.dark .dash-shell .bg-slate-200,
+.dark .dash-shell .bg-slate-300,
+.dark .dash-shell .bg-slate-400 { background-color: var(--dm-surface-3) !important; }
+
+/* ---- Hover background feedback (kept, just darkened) ------------------- */
+.dark .dash-shell .hover\:bg-slate-50:hover,
+.dark .dash-shell .hover\:bg-slate-50\/20:hover,
+.dark .dash-shell .hover\:bg-slate-50\/30:hover,
+.dark .dash-shell .hover\:bg-slate-50\/50:hover,
+.dark .dash-shell .hover\:bg-slate-55:hover,
+.dark .dash-shell .hover\:bg-slate-100:hover,
+.dark .dash-shell .hover\:bg-slate-100\/50:hover { background-color: var(--dm-surface-2) !important; }
+
+.dark .dash-shell .hover\:bg-slate-200:hover,
+.dark .dash-shell .hover\:bg-slate-200\/50:hover { background-color: var(--dm-surface-3) !important; }
+
+/* ---- Text tiers -------------------------------------------------------- */
+.dark .dash-shell .text-slate-900,
+.dark .dash-shell .text-slate-905,
+.dark .dash-shell .text-slate-950,
+.dark .dash-shell .text-slate-955,
+.dark .dash-shell .hover\:text-slate-900:hover { color: var(--dm-text) !important; }
+
+.dark .dash-shell .text-slate-800,
+.dark .dash-shell .hover\:text-slate-800:hover { color: var(--dm-text-2) !important; }
+
+.dark .dash-shell .text-slate-700,
+.dark .dash-shell .text-slate-650,
+.dark .dash-shell .text-slate-655 { color: var(--dm-text-3) !important; }
+
+.dark .dash-shell .text-slate-600,
+.dark .dash-shell .text-slate-550,
+.dark .dash-shell .hover\:text-slate-600:hover { color: var(--dm-text-4) !important; }
+
+.dark .dash-shell .text-slate-500,
+.dark .dash-shell .text-slate-450 { color: var(--dm-text-5) !important; }
+
+.dark .dash-shell .text-slate-400,
+.dark .dash-shell .text-slate-300 { color: var(--dm-text-6) !important; }
+
+/* ---- Borders & dividers: subtle, less-visible lines -------------------- */
+.dark .dash-shell .border-slate-100,
+.dark .dash-shell .border-slate-200,
+.dark .dash-shell .border-slate-200\/60,
+.dark .dash-shell .border-slate-200\/80,
+.dark .dash-shell .border-slate-250,
+.dark .dash-shell .border-slate-300,
+.dark .dash-shell .border-slate-350 { border-color: var(--dm-line) !important; }
+
+.dark .dash-shell .hover\:border-slate-300:hover { border-color: var(--dm-line-hover) !important; }
+
+.dark .dash-shell .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: var(--dm-line) !important; }
+
+/* ---- Placeholders stay readable on dark inputs ------------------------- */
+.dark .dash-shell input::placeholder,
+.dark .dash-shell textarea::placeholder { color: var(--dm-text-6) !important; }
+
+/* ---- Elevated shadows read better as a hairline glow in the dark ------- */
+.dark .dash-shell .card-shadow,
+.dark .dash-shell .card-shadow-lg {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04);
 }

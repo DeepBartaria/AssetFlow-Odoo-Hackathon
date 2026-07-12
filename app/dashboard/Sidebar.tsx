@@ -12,6 +12,7 @@ import {
   Bell
 } from "lucide-react";
 import Link from "next/link";
+import ThemeToggle from "../components/ThemeToggle";
 
 const SIDEBAR_ITEMS = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -59,8 +60,13 @@ export default function Sidebar({ activeItem }: SidebarProps) {
         })}
       </nav>
 
+      {/* Theme toggle */}
+      <div className="pt-4 mt-auto">
+        <ThemeToggle />
+      </div>
+
       {/* User profile snippet */}
-      <div className="pt-6 border-t border-slate-200 mt-auto flex items-center gap-3 cursor-pointer group hover:bg-slate-100 p-2 -mx-2 rounded-lg transition-colors">
+      <div className="pt-4 border-t border-slate-200 flex items-center gap-3 cursor-pointer group hover:bg-slate-100 p-2 -mx-2 rounded-lg transition-colors">
         <div className="w-9 h-9 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center text-sm font-medium text-slate-700">
           JD
         </div>
