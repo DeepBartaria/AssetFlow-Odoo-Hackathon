@@ -16,6 +16,7 @@ import {
   Search
 } from "lucide-react";
 import Sidebar from "../Sidebar";
+import { apiRequest } from "../../../lib/api";
 
 interface Booking {
   id: string;
@@ -145,7 +146,8 @@ export default function ResourceBookingScreen() {
   // Adjust selection when filtered resource list changes
   useEffect(() => {
     if (filteredResources.length > 0 && !filteredResources.some(r => r.id === selectedResourceId)) {
-      setSelectedResourceId(filteredResources[0].id);
+      const firstId = filteredResources[0].id;
+      setTimeout(() => setSelectedResourceId(firstId), 0);
     }
   }, [filteredResources, selectedResourceId]);
 
@@ -156,42 +158,53 @@ export default function ResourceBookingScreen() {
       try {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setBookings(parsed);
+          setTimeout(() => setBookings(parsed), 0);
         } else {
-          setBookings(INITIAL_BOOKINGS);
-          localStorage.setItem("assetflow_bookings", JSON.stringify(INITIAL_BOOKINGS));
+          setTimeout(() => {
+            setBookings(INITIAL_BOOKINGS);
+            localStorage.setItem("assetflow_bookings", JSON.stringify(INITIAL_BOOKINGS));
+          }, 0);
         }
-      } catch (e) {
-        setBookings(INITIAL_BOOKINGS);
+      } catch {
+        setTimeout(() => setBookings(INITIAL_BOOKINGS), 0);
       }
     } else {
-      setBookings(INITIAL_BOOKINGS);
-      localStorage.setItem("assetflow_bookings", JSON.stringify(INITIAL_BOOKINGS));
+      setTimeout(() => {
+        setBookings(INITIAL_BOOKINGS);
+        localStorage.setItem("assetflow_bookings", JSON.stringify(INITIAL_BOOKINGS));
+      }, 0);
     }
 
-    const storedAssets = localStorage.getItem("assetflow_assets");
-    if (storedAssets) {
+    const fetchBookableAssets = async () => {
       try {
-        const parsedAssets = JSON.parse(storedAssets);
-        const bookableAssets = parsedAssets
-          .filter((a: any) => a.isSharedBookable)
-          .map((a: any) => ({
-            id: `asset-${a.tag.toLowerCase()}`,
-            name: `${a.name} (${a.tag})`,
-            type: a.category === "Vehicles" ? "Vehicle" : a.category === "Electronics" ? "Equipment" : "Other",
-            info: `Location: ${a.location}`,
-            capacity: a.condition === "New" ? "Excellent Condition" : "Good Condition"
-          }));
+        const res = await apiRequest("/api/assets");
+        const list = res.data || res || [];
+        const bookableAssets = list
+          .filter((a: { sharedBookable?: boolean; isSharedBookable?: boolean }) => a.sharedBookable || a.isSharedBookable)
+          .map((a: { _id: string; assetTag?: string; tag?: string; name: string; category?: string | { name: string }; location?: string; condition?: string }) => {
+            const catName = a.category && typeof a.category === "object" ? a.category.name : (a.category || "");
+            const tagVal = a.assetTag || a.tag || "AF-0000";
+            return {
+              id: `asset-${tagVal.toLowerCase()}`,
+              name: `${a.name} (${tagVal})`,
+              type: catName === "Vehicles" ? "Vehicle" : catName === "Electronics" ? "Equipment" : "Equipment",
+              info: `Location: ${a.location || "Unknown"}`,
+              capacity: a.condition === "New" ? "Excellent Condition" : "Good Condition"
+            };
+          });
         
         const allResources = [...RESOURCES];
-        bookableAssets.forEach((ba: any) => {
+        bookableAssets.forEach((ba: { id: string; name: string; type: string; info: string; capacity: string }) => {
           if (!allResources.some(r => r.id === ba.id)) {
             allResources.push(ba);
           }
         });
-        setDynamicResources(allResources);
-      } catch (e) {}
-    }
+        setTimeout(() => setDynamicResources(allResources), 0);
+      } catch (e) {
+        // ignore
+      }
+    };
+    fetchBookableAssets();
   }, []);
 
   const saveBookings = (updatedList: Booking[]) => {
@@ -484,7 +497,7 @@ export default function ResourceBookingScreen() {
               <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Resource Type</label>
               <select
                 value={selectedTypeFilter}
-                onChange={(e) => setSelectedTypeFilter(e.target.value as any)}
+                onChange={(e) => setSelectedTypeFilter(e.target.value as "All" | "Room" | "Vehicle" | "Equipment")}
                 className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:border-odoo-500 transition-colors"
               >
                 <option value="All">All Types</option>
@@ -891,7 +904,7 @@ export default function ResourceBookingScreen() {
                 <h4 className="text-xs font-bold uppercase tracking-wider text-blue-800">Conflict Handling Rules</h4>
                 <ul className="text-xs font-medium space-y-1.5 list-disc list-inside">
                   <li>Double-booking is physically impossible.</li>
-                  <li>Booking end time can be exactly equal to next booking's start time.</li>
+                  <li>Booking end time can be exactly equal to next booking&apos;s start time.</li>
                   <li>Overlapping starts/ends are flagged immediately.</li>
                 </ul>
               </div>

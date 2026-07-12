@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Send, User } from "lucide-react";
 
-const TARA_AVATAR = "https://api.dicebear.com/9.x/micah/svg?seed=Sophia&backgroundColor=transparent";
+const TARA_AVATAR = "/tara.png";
 
 type Message = {
   role: "user" | "assistant";

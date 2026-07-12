@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   BarChart3,
@@ -17,6 +17,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import Sidebar from "../Sidebar";
+import { apiRequest } from "../../../lib/api";
 
 // ─── Data (front-end mock, mirrors the rest of the app) ───────────────────────
 
@@ -121,6 +122,90 @@ function Panel({
 
 export default function ReportsScreen() {
   const [period, setPeriod] = useState(PERIODS[0]);
+  const [kpis, setKpis] = useState(KPIS);
+  const [utilization, setUtilization] = useState(UTILIZATION);
+  const [idleAssets, setIdleAssets] = useState(IDLE);
+  const [attentionAssets, setAttentionAssets] = useState(ATTENTION);
+  const [mostUsedAssets] = useState(MOST_USED);
+
+  const fetchReportData = async () => {
+    try {
+      const [assetsList, allocationsList] = await Promise.all([
+        apiRequest("/api/reports/assets"),
+        apiRequest("/api/reports/allocations")
+      ]);
+      const assets = assetsList.data || assetsList || [];
+      const allocations = allocationsList.data || allocationsList || [];
+
+      // Compute KPIs
+      const total = assets.length;
+      const allocated = assets.filter((a: { status: string }) => a.status === "Allocated").length;
+      const maintenance = assets.filter((a: { status: string }) => a.status === "Under Maintenance").length;
+      const available = assets.filter((a: { status: string }) => a.status === "Available").length;
+      const utilizationPercent = total > 0 ? Math.round((allocated / total) * 100) : 0;
+
+      // Group by department for Utilization chart
+      const deptAllocCounts: Record<string, number> = {};
+      allocations.forEach((alloc: { status: string; department?: { name: string } }) => {
+        if (alloc.status === "Active" || alloc.status === "Overdue") {
+          const deptName = alloc.department?.name || "Other";
+          deptAllocCounts[deptName] = (deptAllocCounts[deptName] || 0) + 1;
+        }
+      });
+      const utilizationChart = Object.entries(deptAllocCounts).map(([dept, val]) => ({
+        dept: dept.slice(0, 5),
+        value: total > 0 ? Math.round((val / total) * 100) : 0
+      })).slice(0, 6);
+
+      // Idle assets
+      const idleMapped = assets
+        .filter((a: { status: string; location?: string }) => a.status === "Available")
+        .slice(0, 3)
+        .map((a: { name: string; assetTag: string; location?: string }) => ({
+          name: a.name,
+          tag: a.assetTag,
+          meta: a.location ? `In ${a.location}` : "Available"
+        }));
+
+      // Attention assets
+      const attentionMapped = assets
+        .filter((a: { status: string; condition: string }) => a.status === "Under Maintenance" || a.condition === "Poor")
+        .slice(0, 3)
+        .map((a: { name: string; assetTag: string; status: string }) => ({
+          name: a.name,
+          tag: a.assetTag,
+          note: a.status === "Under Maintenance" ? "bulb / parts replacement or service ongoing" : "Condition reported as Poor.",
+          tone: (a.status === "Under Maintenance" ? "amber" : "red") as "amber" | "red",
+          icon: Wrench
+        }));
+
+      setTimeout(() => {
+        setKpis([
+          { label: "Overall Utilization", value: `${utilizationPercent}%`, trend: "+5%", icon: Activity },
+          { label: "Assets Tracked", value: String(total), trend: "+8", icon: Box },
+          { label: "Avg. Maintenance / mo", value: String(maintenance), trend: "+1.2", icon: Wrench },
+          { label: "Idle Assets", value: String(available), trend: "-3", icon: Clock },
+        ]);
+        if (utilizationChart.length > 0) {
+          setUtilization(utilizationChart);
+        }
+        if (idleMapped.length > 0) {
+          setIdleAssets(idleMapped);
+        }
+        if (attentionMapped.length > 0) {
+          setAttentionAssets(attentionMapped);
+        }
+      }, 0);
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    setTimeout(() => {
+      fetchReportData();
+    }, 0);
+  }, []);
 
   // Maintenance line chart geometry (0-100 viewBox)
   const { linePath, areaPath } = useMemo(() => {
@@ -136,11 +221,11 @@ export default function ReportsScreen() {
 
   const exportCSV = () => {
     const rows: string[][] = [["Section", "Item", "Metric"]];
-    UTILIZATION.forEach((d) => rows.push(["Utilization by Dept", d.dept, `${d.value}%`]));
+    utilization.forEach((d) => rows.push(["Utilization by Dept", d.dept, `${d.value}%`]));
     MAINTENANCE.forEach((d) => rows.push(["Maintenance Frequency", d.m, String(d.v)]));
-    MOST_USED.forEach((d) => rows.push(["Most Used", `${d.name} (${d.tag})`, d.meta]));
-    IDLE.forEach((d) => rows.push(["Idle Assets", `${d.name} (${d.tag})`, d.meta]));
-    ATTENTION.forEach((d) => rows.push(["Needs Attention", `${d.name} (${d.tag})`, d.note]));
+    mostUsedAssets.forEach((d) => rows.push(["Most Used", `${d.name} (${d.tag})`, d.meta]));
+    idleAssets.forEach((d) => rows.push(["Idle Assets", `${d.name} (${d.tag})`, d.meta]));
+    attentionAssets.forEach((d) => rows.push(["Needs Attention", `${d.name} (${d.tag})`, d.note]));
 
     const csv = rows
       .map((r) => r.map((c) => (/[",\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c)).join(","))
@@ -201,7 +286,7 @@ export default function ReportsScreen() {
 
           {/* KPI summary */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {KPIS.map((kpi, idx) => {
+            {kpis.map((kpi, idx) => {
               const Icon = kpi.icon;
               const positive = kpi.trend.startsWith("+");
               const neutralIdle = kpi.label === "Idle Assets"; // fewer idle assets is good, but keep it simple/visual
@@ -238,7 +323,7 @@ export default function ReportsScreen() {
             {/* Utilization by department */}
             <Panel title="Utilization by Department" icon={Building2} subtitle="Share of assets actively in use" delay={0.05}>
               <div className="h-56 flex items-end gap-2 sm:gap-3 pt-6">
-                {UTILIZATION.map((d, i) => (
+                {utilization.map((d, i) => (
                   <div key={d.dept} className="flex-1 flex flex-col items-center justify-end h-full gap-2">
                     <div className="relative w-full flex-1 flex items-end justify-center">
                       <motion.div
@@ -307,7 +392,7 @@ export default function ReportsScreen() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <Panel title="Most Used Assets" icon={TrendingUp} delay={0.05}>
               <ul className="space-y-1">
-                {MOST_USED.map((a, i) => (
+                {mostUsedAssets.map((a, i) => (
                   <li key={a.tag} className="flex items-center gap-4 py-2.5">
                     <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-odoo-50 border border-odoo-100 text-xs font-bold text-odoo-700 shrink-0">
                       {i + 1}
@@ -326,7 +411,7 @@ export default function ReportsScreen() {
 
             <Panel title="Idle Assets" icon={Clock} delay={0.1}>
               <ul className="space-y-1">
-                {IDLE.map((a) => (
+                {idleAssets.map((a) => (
                   <li key={a.tag} className="flex items-center gap-4 py-2.5">
                     <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-50 border border-slate-200 shrink-0">
                       <Box className="w-4 h-4 text-slate-400" />
@@ -385,7 +470,7 @@ export default function ReportsScreen() {
           {/* Assets needing attention */}
           <Panel title="Due for Maintenance / Nearing Retirement" icon={PackageCheck} delay={0.05} className="!p-0">
             <div className="divide-y divide-slate-100 -m-5 sm:-m-6">
-              {ATTENTION.map((a) => {
+              {attentionAssets.map((a) => {
                 const tone = ATTN_TONE[a.tone];
                 const Icon = a.icon;
                 return (

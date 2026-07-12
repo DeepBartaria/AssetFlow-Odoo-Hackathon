@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { 
   Plus,
@@ -10,23 +11,79 @@ import {
   TrendingDown
 } from "lucide-react";
 import Sidebar from "./Sidebar";
+import { apiRequest } from "../../lib/api";
 
-const METRICS = [
-  { label: "Available", value: "128", trend: "+4" },
-  { label: "Allocated", value: "76", trend: "+12" },
-  { label: "Under Maintenance", value: "4", trend: "-2" },
-  { label: "Active Bookings", value: "9", trend: "+3" },
-  { label: "Pending Transfers", value: "3", trend: "0" },
-  { label: "Upcoming Returns", value: "12", trend: "+1" },
-];
+function formatTime(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
 
-const RECENT_ACTIVITY = [
-  { id: 1, text: "Laptop AF-0114 - allocated to Priya Shah - IT Dept", time: "10m ago" },
-  { id: 2, text: "Room B2 - booking confirmed - 2:00 to 3:00 PM", time: "1h ago" },
-  { id: 3, text: "Projector AF-0062 - maintenance resolved", time: "2h ago" },
-];
+interface MetricItem {
+  label: string;
+  value: string;
+  trend: string;
+}
+
+interface ActivityItem {
+  id: string;
+  text: string;
+  time: string;
+}
 
 export default function DashboardScreen() {
+  const [metrics, setMetrics] = useState<MetricItem[]>([]);
+  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
+
+  const fetchDashboard = async () => {
+    try {
+      const res = await apiRequest("/api/dashboard");
+      const d = res.data || res || {};
+      
+      // Let's also check active bookings from local storage if not available on backend, or count reserved assets
+      const bookingsCount = d.reservedAssets || 0;
+
+      setTimeout(() => {
+        setMetrics([
+          { label: "Available", value: String(d.availableAssets ?? 0), trend: "+4" },
+          { label: "Allocated", value: String(d.allocatedAssets ?? 0), trend: "+12" },
+          { label: "Under Maintenance", value: String(d.maintenanceAssets ?? 0), trend: "-2" },
+          { label: "Active Bookings", value: String(bookingsCount), trend: "+3" },
+          { label: "Pending Transfers", value: String(d.pendingTransfers ?? 0), trend: "0" },
+          { label: "Upcoming Returns", value: String(d.overdueAllocations ?? 0), trend: "+1" },
+        ]);
+      }, 0);
+    } catch {
+      // ignore
+    }
+  };
+
+  const fetchRecentActivity = async () => {
+    try {
+      const res = await apiRequest("/api/notifications");
+      const list = res.data || res || [];
+      const mapped = list.slice(0, 5).map((n: { _id: string; message: string; createdAt: string }, idx: number) => ({
+        id: n._id || String(idx),
+        text: n.message || "Notification",
+        time: formatTime(n.createdAt)
+      }));
+      setTimeout(() => setRecentActivity(mapped), 0);
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    setTimeout(() => {
+      fetchDashboard();
+      fetchRecentActivity();
+    }, 0);
+  }, []);
+
   return (
     <div className="min-h-screen flex bg-[#ffffff] text-slate-800">
       
@@ -39,8 +96,8 @@ export default function DashboardScreen() {
           
           <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Today's Overview</h1>
-              <p className="text-slate-500 text-sm mt-1">Here is what's happening with your assets today.</p>
+              <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Today&apos;s Overview</h1>
+              <p className="text-slate-500 text-sm mt-1">Here is what&apos;s happening with your assets today.</p>
             </div>
             
             {/* Quick Actions */}
@@ -75,7 +132,7 @@ export default function DashboardScreen() {
 
           {/* KPI Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {METRICS.map((metric, idx) => (
+            {metrics.map((metric, idx) => (
                 <motion.div
                   key={idx}
                   initial={{ opacity: 0, scale: 0.95 }}
@@ -102,7 +159,7 @@ export default function DashboardScreen() {
             <h2 className="text-xl font-bold text-slate-900 mb-5 tracking-tight">Recent Activity</h2>
             <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden card-shadow">
               <div className="divide-y divide-slate-100">
-                {RECENT_ACTIVITY.map((activity) => (
+                {recentActivity.map((activity) => (
                   <div key={activity.id} className="p-5 flex items-center justify-between hover:bg-slate-50 transition-colors">
                     <div className="flex items-center gap-4">
                       <div className="w-2 h-2 rounded-full bg-odoo-500"></div>

@@ -14,6 +14,7 @@ import {
   ClipboardList
 } from "lucide-react";
 import Sidebar from "../Sidebar";
+import { apiRequest } from "../../../lib/api";
 
 interface HistoryEntry {
   type: "Registration" | "Allocation" | "Maintenance" | "Audit" | "StatusChange";
@@ -23,6 +24,8 @@ interface HistoryEntry {
 }
 
 interface Asset {
+  _id?: string;
+  id?: string;
   tag: string;
   name: string;
   category: string;
@@ -64,7 +67,8 @@ const DEFAULT_TRANSFERS: TransferRequest[] = [
 ];
 
 interface OrgEmployee {
-  id: number;
+  _id?: string;
+  id?: string;
   name: string;
   email: string;
   department: string;
@@ -73,7 +77,8 @@ interface OrgEmployee {
 }
 
 interface OrgDepartment {
-  id: number;
+  _id?: string;
+  id?: string;
   name: string;
   head: string;
   headInitials: string;
@@ -81,7 +86,22 @@ interface OrgDepartment {
   status: "Active" | "Inactive";
 }
 
+interface Toast {
+  id: string;
+  message: string;
+}
+
 export default function AllocationTransferScreen() {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const showToast = (message: string) => {
+    // eslint-disable-next-line react-hooks/purity
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { id, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3000);
+  };
+
   const [assets, setAssets] = useState<Asset[]>([]);
   const [transfers, setTransfers] = useState<TransferRequest[]>([]);
   const [isAllocateModalOpen, setIsAllocateModalOpen] = useState(false);
@@ -112,85 +132,89 @@ export default function AllocationTransferScreen() {
   const [returnCondition, setRegCondition] = useState<"New" | "Good" | "Fair" | "Poor" >("Good");
   const [returnNotes, setReturnNotes] = useState("");
 
-  // Load and save localStorage
-  useEffect(() => {
-    // Assets
-    const storedAssets = localStorage.getItem("assetflow_assets");
-    if (storedAssets) {
-      try {
-        const parsed = JSON.parse(storedAssets);
-        setTimeout(() => setAssets(parsed), 0);
-      } catch {
-        // use defaults
-      }
+  const fetchAssets = async () => {
+    try {
+      const res = await apiRequest("/api/assets");
+      const list = res.data || res || [];
+      const mapped = list.map((a: { _id: string; assetTag: string; name: string; category: string | { name: string }; serialNumber: string; acquisitionDate: string; acquisitionCost: number; condition: "New" | "Good" | "Fair" | "Poor"; location: string; status: string; sharedBookable: boolean; history: { type: string; date: string; details: string; actor: string }[] }) => ({
+        ...a,
+        id: a._id,
+        tag: a.assetTag,
+        isSharedBookable: a.sharedBookable,
+        category: a.category && typeof a.category === "object" ? a.category.name : a.category
+      }));
+      setTimeout(() => setAssets(mapped), 0);
+    } catch {
+      // ignore
     }
-    // Transfers
-    const storedTransfers = localStorage.getItem("assetflow_transfers");
-    if (storedTransfers) {
-      try {
-        const parsed = JSON.parse(storedTransfers);
-        setTimeout(() => setTransfers(parsed), 0);
-      } catch {
-        setTimeout(() => setTransfers(DEFAULT_TRANSFERS), 0);
-      }
-    } else {
+  };
+
+  const fetchTransfers = async () => {
+    try {
+      const res = await apiRequest("/api/transfers");
+      const list = res.data || res || [];
+      const mapped = list.map((t: { _id: string; asset?: { assetTag: string; name: string }; fromEmployee?: { name: string }; toEmployee?: { name: string; department?: string | { name: string } }; status: "Pending" | "Approved" | "Rejected"; createdAt?: string }) => ({
+        id: t._id,
+        assetTag: t.asset?.assetTag || "AF-0000",
+        assetName: t.asset?.name || "Unknown Asset",
+        fromEmployee: t.fromEmployee?.name || "Unknown",
+        toEmployee: t.toEmployee?.name || "Unknown",
+        toDept: t.toEmployee?.department && typeof t.toEmployee.department === "object" ? t.toEmployee.department.name : (t.toEmployee?.department || "Engineering"),
+        status: t.status,
+        requestDate: t.createdAt ? new Date(t.createdAt).toISOString().split("T")[0] : "2026-07-12"
+      }));
+      setTimeout(() => setTransfers(mapped), 0);
+    } catch {
       setTimeout(() => setTransfers(DEFAULT_TRANSFERS), 0);
-      localStorage.setItem("assetflow_transfers", JSON.stringify(DEFAULT_TRANSFERS));
     }
-  }, []);
+  };
 
-  // Sync active employees and departments from localStorage
+  const fetchEmployees = async () => {
+    try {
+      const res = await apiRequest("/api/employees");
+      const list = res.data || res || [];
+      const active = list.filter((e: { status: string }) => e.status === "Active").map((e: { _id: string; name: string; email: string; department?: string | { name: string }; role: string; status: string }) => ({
+        id: e._id,
+        _id: e._id,
+        name: e.name,
+        email: e.email,
+        department: e.department && typeof e.department === "object" ? e.department.name : (e.department || ""),
+        role: e.role,
+        status: e.status
+      }));
+      setTimeout(() => setEmployeesList(active), 0);
+    } catch {
+      // ignore
+    }
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      const res = await apiRequest("/api/departments");
+      const list = res.data || res || [];
+      const active = list.filter((d: { status: string }) => d.status === "Active").map((d: { _id: string; name: string; head: string; parentDepartment?: string; status: string }) => ({
+        id: d._id,
+        _id: d._id,
+        name: d.name,
+        head: d.head,
+        parent: d.parentDepartment || "—",
+        status: d.status
+      }));
+      setTimeout(() => setDepartmentsList(active), 0);
+    } catch {
+      // ignore
+    }
+  };
+
+  // Load and sync from database on mount
   useEffect(() => {
-    // Employees
-    const storedEmps = localStorage.getItem("assetflow_employees");
-    let activeEmps: OrgEmployee[] = [];
-    if (storedEmps) {
-      try {
-        const parsed = JSON.parse(storedEmps) as OrgEmployee[];
-        activeEmps = parsed.filter(emp => emp.status === "Active");
-      } catch {
-        // use default
-      }
-    }
-    if (activeEmps.length === 0) {
-      activeEmps = [
-        { id: 1, name: "Ankit Mishra", email: "ankit@example.com", department: "Engineering", role: "Employee", status: "Active" },
-        { id: 2, name: "Priya Shah", email: "priya@example.com", department: "Facilities", role: "Department Head", status: "Active" }
-      ];
-    }
-    const emps = activeEmps;
-    setTimeout(() => setEmployeesList(emps), 0);
-
-    // Departments
-    const storedDepts = localStorage.getItem("assetflow_departments");
-    let activeDepts: OrgDepartment[] = [];
-    if (storedDepts) {
-      try {
-        const parsed = JSON.parse(storedDepts) as OrgDepartment[];
-        activeDepts = parsed.filter(dept => dept.status === "Active");
-      } catch {
-        // use default
-      }
-    }
-    if (activeDepts.length === 0) {
-      activeDepts = [
-        { id: 1, name: "Engineering", head: "Aditi Rao", headInitials: "AR", parent: "—", status: "Active" },
-        { id: 2, name: "Facilities", head: "Rohan Mehta", headInitials: "RM", parent: "—", status: "Active" }
-      ];
-    }
-    const depts = activeDepts;
-    setTimeout(() => setDepartmentsList(depts), 0);
+    setTimeout(() => {
+      fetchAssets();
+      fetchTransfers();
+      fetchEmployees();
+      fetchDepartments();
+    }, 0);
   }, []);
-
-  const saveAssets = (updated: Asset[]) => {
-    setAssets(updated);
-    localStorage.setItem("assetflow_assets", JSON.stringify(updated));
-  };
-
-  const saveTransfers = (updated: TransferRequest[]) => {
-    setTransfers(updated);
-    localStorage.setItem("assetflow_transfers", JSON.stringify(updated));
-  };
 
   // Check if an allocation is overdue
   const isOverdue = (asset: Asset) => {
@@ -245,154 +269,164 @@ export default function AllocationTransferScreen() {
   const isAllocateFormValid = !allocateAssetTagError && !allocateNameError && !allocateDeptError && !allocateReturnDateError;
 
   // Handle Allocation Submit
-  const handleAllocate = (e: React.FormEvent) => {
+  const handleAllocate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAllocateFormValid) return;
     setAllocationConflictError(null);
     setConflictingAsset(null);
 
-    const asset = assets.find(a => a.tag === selectedAssetTag);
-    if (!asset) return;
+    const assetDoc = assets.find(a => a.tag === selectedAssetTag);
+    const empDoc = employeesList.find(e => e.name === assigneeName);
+    const deptDoc = departmentsList.find(d => d.name === assigneeDept);
 
-    // Check conflict: Cannot allocate if not Available
-    if (asset.status !== "Available") {
-      setConflictingAsset(asset);
-      const employeeName = asset.allocatedTo || "another employee";
-      setAllocationConflictError(`Already allocated to ${employeeName}. Please create a Transfer Request.`);
+    if (!assetDoc || !empDoc || !deptDoc) {
+      showToast("Selected asset, employee, or department is invalid.");
       return;
     }
 
-    // Perform Allocation
-    const updated = assets.map(a => {
-      if (a.tag === selectedAssetTag) {
-        const historyEntry: HistoryEntry = {
-          type: "Allocation",
-          date: new Date().toISOString().split("T")[0],
-          details: `Allocated to ${assigneeName} (${assigneeDept}). Return expected: ${returnDate || "None"}`,
-          actor: "Jane Doe (Asset Manager)"
-        };
-        return {
-          ...a,
-          status: "Allocated" as const,
-          allocatedTo: assigneeName,
-          allocatedToDept: assigneeDept,
+    try {
+      await apiRequest("/api/allocations", {
+        method: "POST",
+        body: JSON.stringify({
+          asset: assetDoc.id || assetDoc._id,
+          employee: empDoc.id || empDoc._id,
+          department: deptDoc.id || deptDoc._id,
           expectedReturnDate: returnDate || undefined,
-          history: [historyEntry, ...a.history]
-        };
-      }
-      return a;
-    });
+          performedBy: "Jane Doe (Asset Manager)"
+        })
+      });
 
-    saveAssets(updated);
-    setIsAllocateModalOpen(false);
-    // Reset Form
-    setSelectedAssetTag("");
-    setAssigneeName("");
-    setAssigneeDept("");
-    setReturnDate("");
-    setAllocateTouched({
-      assetTag: false,
-      assigneeName: false,
-      assigneeDept: false,
-      returnDate: false
-    });
+      await fetchAssets();
+      setIsAllocateModalOpen(false);
+
+      // Reset Form
+      setSelectedAssetTag("");
+      setAssigneeName("");
+      setAssigneeDept("");
+      setReturnDate("");
+      setAllocateTouched({
+        assetTag: false,
+        assigneeName: false,
+        assigneeDept: false,
+        returnDate: false
+      });
+      showToast("Allocation created successfully.");
+    } catch (err: unknown) {
+      const errorMsg = (err as { message?: string }).message || "Failed to create allocation.";
+      setConflictingAsset(assetDoc);
+      setAllocationConflictError(errorMsg);
+    }
   };
 
   // Trigger Transfer Request from Conflict
-  const handleRequestTransfer = () => {
+  const handleRequestTransfer = async () => {
     if (!conflictingAsset) return;
-    
-    const newTransfer: TransferRequest = {
-      id: `tr-${Date.now()}`,
-      assetTag: conflictingAsset.tag,
-      assetName: conflictingAsset.name,
-      fromEmployee: conflictingAsset.allocatedTo || "Unknown",
-      toEmployee: assigneeName || "Raj Verma",
-      toDept: assigneeDept || "Engineering",
-      status: "Pending",
-      requestDate: new Date().toISOString().split("T")[0]
-    };
 
-    saveTransfers([newTransfer, ...transfers]);
-    setIsAllocateModalOpen(false);
-    setAllocationConflictError(null);
-    setConflictingAsset(null);
+    try {
+      const toEmpDoc = employeesList.find(e => e.name === assigneeName);
+      const fromEmpDoc = employeesList.find(e => e.name === conflictingAsset.allocatedTo);
+
+      if (!toEmpDoc || !fromEmpDoc) {
+        showToast("Invalid current holder or target recipient employee.");
+        return;
+      }
+
+      await apiRequest("/api/transfers", {
+        method: "POST",
+        body: JSON.stringify({
+          asset: conflictingAsset.id || conflictingAsset._id,
+          fromEmployee: fromEmpDoc.id || fromEmpDoc._id,
+          toEmployee: toEmpDoc.id || toEmpDoc._id,
+          requestedBy: toEmpDoc.id || toEmpDoc._id,
+          reason: "Requested via checkout conflict."
+        })
+      });
+
+      await fetchTransfers();
+      setIsAllocateModalOpen(false);
+      setAllocationConflictError(null);
+      setConflictingAsset(null);
+      showToast("Transfer request created successfully.");
+    } catch (err: unknown) {
+      const errorMsg = (err as { message?: string }).message || "Failed to create transfer request.";
+      showToast(errorMsg);
+    }
   };
 
   // Approve Transfer
-  const handleApproveTransfer = (transfer: TransferRequest) => {
-    // 1. Update Asset Allocation
-    const updatedAssets = assets.map(a => {
-      if (a.tag === transfer.assetTag) {
-        const historyEntry: HistoryEntry = {
-          type: "Allocation",
-          date: new Date().toISOString().split("T")[0],
-          details: `Transfer approved. Re-allocated from ${transfer.fromEmployee} to ${transfer.toEmployee} (${transfer.toDept})`,
-          actor: "Jane Doe (Asset Manager)"
-        };
-        return {
-          ...a,
-          status: "Allocated" as const,
-          allocatedTo: transfer.toEmployee,
-          allocatedToDept: transfer.toDept,
-          history: [historyEntry, ...a.history]
-        };
-      }
-      return a;
-    });
-    saveAssets(updatedAssets);
-
-    // 2. Update Transfer Request status
-    const updatedTransfers = transfers.map(t => {
-      if (t.id === transfer.id) {
-        return { ...t, status: "Approved" as const };
-      }
-      return t;
-    });
-    saveTransfers(updatedTransfers);
+  const handleApproveTransfer = async (transfer: { id: string }) => {
+    try {
+      await apiRequest(`/api/transfers/${transfer.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          status: "Approved",
+          performedBy: "Jane Doe (Asset Manager)"
+        })
+      });
+      showToast("Transfer approved.");
+      await fetchTransfers();
+      await fetchAssets();
+    } catch (err: unknown) {
+      const errorMsg = (err as { message?: string }).message || "Failed to approve transfer.";
+      showToast(errorMsg);
+    }
   };
 
   // Reject Transfer
-  const handleRejectTransfer = (id: string) => {
-    const updated = transfers.map(t => {
-      if (t.id === id) {
-        return { ...t, status: "Rejected" as const };
-      }
-      return t;
-    });
-    saveTransfers(updated);
+  const handleRejectTransfer = async (id: string) => {
+    try {
+      await apiRequest(`/api/transfers/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          status: "Rejected",
+          performedBy: "Jane Doe (Asset Manager)"
+        })
+      });
+      showToast("Transfer rejected.");
+      await fetchTransfers();
+    } catch (err: unknown) {
+      const errorMsg = (err as { message?: string }).message || "Failed to reject transfer.";
+      showToast(errorMsg);
+    }
   };
 
   // Return Check-in Submit
-  const handleReturn = (e: React.FormEvent) => {
+  const handleReturn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!returnAssetTag) return;
 
-    const updated = assets.map(a => {
-      if (a.tag === returnAssetTag) {
-        const historyEntry: HistoryEntry = {
-          type: "StatusChange",
-          date: new Date().toISOString().split("T")[0],
-          details: `Returned by ${a.allocatedTo}. Checked-in condition: ${returnCondition}. Notes: ${returnNotes || "None"}`,
-          actor: "Jane Doe (Asset Manager)"
-        };
-        return {
-          ...a,
-          status: "Available" as const,
-          condition: returnCondition,
-          allocatedTo: undefined,
-          allocatedToDept: undefined,
-          expectedReturnDate: undefined,
-          history: [historyEntry, ...a.history]
-        };
-      }
-      return a;
-    });
+    try {
+      const res = await apiRequest("/api/allocations");
+      const allocations = res.data || res || [];
+      const activeAlloc = allocations.find((alloc: { asset?: { _id: string; assetTag: string }; _id: string; id?: string; status: string }) => {
+        const isAssetMatch = alloc.asset && (alloc.asset.assetTag === returnAssetTag || alloc.asset._id === returnAssetTag);
+        return isAssetMatch && (alloc.status === "Active" || alloc.status === "Overdue");
+      });
 
-    saveAssets(updated);
-    setIsReturnModalOpen(false);
-    setReturnAssetTag("");
-    setReturnNotes("");
+      if (!activeAlloc) {
+        showToast("No active allocation found for this asset tag.");
+        return;
+      }
+
+      await apiRequest(`/api/allocations/${activeAlloc._id || activeAlloc.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          status: "Returned",
+          conditionOnReturn: returnCondition,
+          remarks: returnNotes,
+          performedBy: "Jane Doe (Asset Manager)"
+        })
+      });
+
+      showToast("Asset checked in successfully.");
+      await fetchAssets();
+      setIsReturnModalOpen(false);
+      setReturnAssetTag("");
+      setReturnNotes("");
+    } catch (err: unknown) {
+      const errorMsg = (err as { message?: string }).message || "Failed to check in asset.";
+      showToast(errorMsg);
+    }
   };
 
   return (
@@ -924,6 +958,18 @@ export default function AllocationTransferScreen() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Toast notifications Container */}
+      <div className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-2 max-w-sm pointer-events-none">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className="bg-slate-900/95 backdrop-blur-sm text-white px-5 py-3 rounded-xl shadow-xl flex items-center justify-between gap-3 text-xs font-semibold animate-slide-in pointer-events-auto border border-slate-800"
+          >
+            <span>{toast.message}</span>
+          </div>
+        ))}
+      </div>
 
     </div>
   );
