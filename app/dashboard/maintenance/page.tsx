@@ -117,6 +117,16 @@ export default function MaintenanceScreen() {
   const [safetyCheck, setSafetyCheck] = useState(false);
   const [functionalCheck, setFunctionalCheck] = useState(false);
 
+  // Stats summary for maintenance tickets
+  const stats = useMemo(() => {
+    const total = requests.length;
+    const pending = requests.filter(r => r.status === "Pending").length;
+    const active = requests.filter(r => r.status === "Approved" || r.status === "Technician Assigned" || r.status === "In Progress").length;
+    const resolved = requests.filter(r => r.status === "Resolved").length;
+
+    return { total, pending, active, resolved };
+  }, [requests]);
+
   // Load and save localStorage
   useEffect(() => {
     const stored = localStorage.getItem("assetflow_maintenance_requests");
@@ -396,11 +406,51 @@ export default function MaintenanceScreen() {
             </div>
           </header>
 
+          {/* Statistics Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 card-shadow flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Tickets</p>
+                <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{stats.total}</h3>
+              </div>
+              <div className="w-10 h-10 bg-odoo-50 text-odoo-600 rounded-xl flex items-center justify-center border border-odoo-100 animate-pulse">
+                <Wrench className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 card-shadow flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pending Approval</p>
+                <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{stats.pending}</h3>
+              </div>
+              <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center border border-amber-100">
+                <Clock className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 card-shadow flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Repairs</p>
+                <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{stats.active}</h3>
+              </div>
+              <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center border border-blue-100">
+                <Play className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 card-shadow flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Resolved Repairs</p>
+                <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{stats.resolved}</h3>
+              </div>
+              <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center border border-emerald-100">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+            </div>
+          </div>
+
           {/* Kanban Board Container */}
           <div className="flex-1 overflow-x-auto pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 flex gap-5 items-stretch min-h-[500px]">
             
             {/* 1. Pending Column */}
-            <div className="w-80 shrink-0 flex flex-col bg-slate-100/75 border border-slate-200/60 rounded-2xl p-4 space-y-4">
+            <div className="w-80 shrink-0 flex flex-col bg-slate-100/75 border border-slate-200/60 border-t-4 border-t-amber-500 rounded-2xl p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-slate-700 text-sm flex items-center gap-2">
                   <Clock className="w-4 h-4 text-slate-400" />
@@ -428,7 +478,7 @@ export default function MaintenanceScreen() {
             </div>
 
             {/* 2. Approved Column */}
-            <div className="w-80 shrink-0 flex flex-col bg-slate-100/75 border border-slate-200/60 rounded-2xl p-4 space-y-4">
+            <div className="w-80 shrink-0 flex flex-col bg-slate-100/75 border border-slate-200/60 border-t-4 border-t-blue-500 rounded-2xl p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-slate-700 text-sm flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 text-amber-500" />
@@ -454,7 +504,7 @@ export default function MaintenanceScreen() {
             </div>
 
             {/* 3. Tech Assigned Column */}
-            <div className="w-80 shrink-0 flex flex-col bg-slate-100/75 border border-slate-200/60 rounded-2xl p-4 space-y-4">
+            <div className="w-80 shrink-0 flex flex-col bg-slate-100/75 border border-slate-200/60 border-t-4 border-t-purple-500 rounded-2xl p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-slate-700 text-sm flex items-center gap-2">
                   <UserCheck className="w-4 h-4 text-blue-500" />
@@ -480,7 +530,7 @@ export default function MaintenanceScreen() {
             </div>
 
             {/* 4. In Progress Column */}
-            <div className="w-80 shrink-0 flex flex-col bg-slate-100/75 border border-slate-200/60 rounded-2xl p-4 space-y-4">
+            <div className="w-80 shrink-0 flex flex-col bg-slate-100/75 border border-slate-200/60 border-t-4 border-t-indigo-500 rounded-2xl p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-slate-700 text-sm flex items-center gap-2">
                   <Play className="w-4 h-4 text-odoo-500 fill-odoo-500" />
@@ -506,7 +556,7 @@ export default function MaintenanceScreen() {
             </div>
 
             {/* 5. Resolved Column */}
-            <div className="w-80 shrink-0 flex flex-col bg-slate-100/75 border border-slate-200/60 rounded-2xl p-4 space-y-4">
+            <div className="w-80 shrink-0 flex flex-col bg-slate-100/75 border border-slate-200/60 border-t-4 border-t-emerald-500 rounded-2xl p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-slate-700 text-sm flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-odoo-600" />

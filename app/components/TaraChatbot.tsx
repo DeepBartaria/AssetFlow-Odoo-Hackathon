@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Send, User } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 
 const TARA_AVATAR = "/tara.png";
 
@@ -110,12 +111,27 @@ export default function TaraChatbot() {
                       <User className="w-4 h-4" />
                     )}
                   </div>
-                  <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed max-w-[75%] shadow-sm ${
+                  <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed max-w-[85%] shadow-sm overflow-x-auto ${
                     msg.role === "user" 
                       ? "bg-odoo-600 text-white rounded-tr-sm" 
-                      : "bg-white text-slate-700 border border-slate-200 rounded-tl-sm"
+                      : "bg-white border border-slate-200 text-slate-700 rounded-tl-sm prose prose-sm prose-slate"
                   }`}>
-                    {msg.content}
+                    {msg.role === "user" ? msg.content : (
+                      <ReactMarkdown 
+                        components={{
+                          p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                          ul: ({node, ...props}) => <ul className="list-disc pl-4 mb-2" {...props} />,
+                          ol: ({node, ...props}) => <ol className="list-decimal pl-4 mb-2" {...props} />,
+                          li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                          strong: ({node, ...props}) => <strong className="font-bold text-slate-900" {...props} />,
+                          table: ({node, ...props}) => <table className="w-full text-left border-collapse my-2" {...props} />,
+                          th: ({node, ...props}) => <th className="border-b border-slate-200 pb-1 text-xs font-bold uppercase text-slate-500" {...props} />,
+                          td: ({node, ...props}) => <td className="border-b border-slate-100 py-1" {...props} />
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    )}
                   </div>
                 </div>
               ))}

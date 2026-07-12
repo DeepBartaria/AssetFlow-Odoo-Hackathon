@@ -40,9 +40,9 @@ export default function LandingPage() {
           </div>
 
           <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-300">
-            <a href="#" className="hover:text-white transition-colors">Discover</a>
-            <a href="#" className="hover:text-white transition-colors">Features</a>
-            <a href="#" className="hover:text-white transition-colors">Modules</a>
+            <a href="#discover" className="hover:text-white transition-colors">Discover</a>
+            <a href="#features" className="hover:text-white transition-colors">Features</a>
+            <a href="#modules" className="hover:text-white transition-colors">Modules</a>
           </div>
 
           <div className="flex items-center">
@@ -106,7 +106,7 @@ export default function LandingPage() {
       </main>
 
       {/* Horizontal Scroll Section (transparent so the stars flow behind the sliding cards) */}
-      <section ref={targetRef} className="relative h-[300vh] w-full">
+      <section id="discover" ref={targetRef} className="relative h-[300vh] w-full">
         <div className="sticky top-0 h-screen flex items-center overflow-hidden">
           <motion.div style={{ x }} className="flex gap-8 px-4 md:px-24 w-max">
 
@@ -309,7 +309,7 @@ export default function LandingPage() {
       </section>
 
       {/* 2. Core Modules */}
-      <section className="relative z-10 py-32">
+      <section id="modules" className="relative z-10 py-32">
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-20">
             <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-6 tracking-tight [text-shadow:0_2px_20px_rgba(0,0,0,0.5)]">Structured Lifecycles & <br/> Centralized Booking</h2>
@@ -353,7 +353,7 @@ export default function LandingPage() {
       </section>
 
       {/* 3. All Features */}
-      <section className="relative z-10 py-32 border-t border-white/10">
+      <section id="features" className="relative z-10 py-32 border-t border-white/10">
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-20">
             <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-6 tracking-tight [text-shadow:0_2px_20px_rgba(0,0,0,0.5)]">Core ERP Functionality</h2>
