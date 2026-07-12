@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { 
   Plus, 
   Info, 
@@ -14,7 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Sidebar from "../Sidebar";
 
 // Mock data representing the departments exactly as requested in specifications
-const DEPARTMENTS_DATA = [
+const INITIAL_DEPARTMENTS_DATA = [
   { id: 1, name: "Engineering", head: "Aditi Rao", headInitials: "AR", parent: "—", status: "Active" as const },
   { id: 2, name: "Facilities", head: "Rohan Mehta", headInitials: "RM", parent: "—", status: "Active" as const },
   { id: 3, name: "Field Ops (East)", head: "Sana Iqbal", headInitials: "SI", parent: "Field Ops", status: "Inactive" as const },
@@ -41,12 +41,22 @@ export function StatusBadge({ status }: StatusBadgeProps) {
   );
 }
 
+interface Toast {
+  id: number;
+  message: string;
+}
+
 export default function OrganizationSetupScreen() {
   const [activeTab, setActiveTab] = useState<"Departments" | "Categories" | "Employee">("Departments");
+  
+  // 1. Departments stored in React State
+  const [departments, setDepartments] = useState(INITIAL_DEPARTMENTS_DATA);
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
-  
-  // Modal form states (visual-only, no validation/backend submission)
+  const [editingId, setEditingId] = useState<number | null>(null);
+
+  // Modal form states
   const [formData, setFormData] = useState({
     name: "",
     head: "",
@@ -54,30 +64,144 @@ export default function OrganizationSetupScreen() {
     status: "Active" as "Active" | "Inactive"
   });
 
+  // Touch states for inline validation display
+  const [touched, setTouched] = useState({
+    name: false,
+    head: false
+  });
+
+  // Toasts state for showing success messages
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  // Trigger toast notifications
+  const showToast = (message: string) => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3000);
+  };
+
+  // Helper to extract initials from head name
+  const getInitials = (name: string) => {
+    return name
+      .trim()
+      .split(/\s+/)
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  // Frontend-only validation rules
+  const nameError = useMemo(() => {
+    const val = formData.name.trim();
+    if (!val) {
+      return "Department Name cannot be empty.";
+    }
+    const isDuplicate = departments.some((d) => {
+      if (modalMode === "edit" && d.id === editingId) return false;
+      return d.name.toLowerCase().trim() === val.toLowerCase();
+    });
+    if (isDuplicate) {
+      return "Department Name already exists (duplicate names not allowed).";
+    }
+    return "";
+  }, [formData.name, departments, modalMode, editingId]);
+
+  const headError = useMemo(() => {
+    const val = formData.head.trim();
+    if (!val) {
+      return "Department Head cannot be empty.";
+    }
+    return "";
+  }, [formData.head]);
+
+  const isValid = !nameError && !headError;
+
   const handleAdd = () => {
     setModalMode("add");
+    setEditingId(null);
     setFormData({
       name: "",
       head: "",
       parent: "",
       status: "Active"
     });
+    setTouched({
+      name: false,
+      head: false
+    });
     setIsModalOpen(true);
   };
 
-  const handleEdit = (dept: typeof DEPARTMENTS_DATA[0]) => {
+  const handleEdit = (dept: typeof INITIAL_DEPARTMENTS_DATA[0]) => {
     setModalMode("edit");
+    setEditingId(dept.id);
     setFormData({
       name: dept.name,
       head: dept.head,
       parent: dept.parent === "—" ? "" : dept.parent,
       status: dept.status
     });
+    setTouched({
+      name: false,
+      head: false
+    });
     setIsModalOpen(true);
   };
 
+  // Add / Edit Department Save handler
+  const handleSave = () => {
+    if (!isValid) return;
+
+    if (modalMode === "add") {
+      const newDept = {
+        id: Date.now(),
+        name: formData.name.trim(),
+        head: formData.head.trim(),
+        headInitials: getInitials(formData.head),
+        parent: formData.parent.trim() || "—",
+        status: formData.status
+      };
+      setDepartments((prev) => [...prev, newDept]);
+      showToast("Department created successfully");
+    } else {
+      setDepartments((prev) =>
+        prev.map((d) => {
+          if (d.id === editingId) {
+            return {
+              ...d,
+              name: formData.name.trim(),
+              head: formData.head.trim(),
+              headInitials: getInitials(formData.head),
+              parent: formData.parent.trim() || "—",
+              status: formData.status
+            };
+          }
+          return d;
+        })
+      );
+      showToast("Department updated successfully");
+    }
+    setIsModalOpen(false);
+  };
+
+  // Deactivate Department handler
+  const handleDeactivate = (id: number) => {
+    setDepartments((prev) =>
+      prev.map((d) => {
+        if (d.id === id) {
+          return { ...d, status: "Inactive" as const };
+        }
+        return d;
+      })
+    );
+    showToast("Department deactivated");
+  };
+
   return (
-    <div className="min-h-screen flex bg-[#ffffff] text-slate-800">
+    <div className="min-h-screen flex bg-[#ffffff] text-slate-800 relative">
       {/* Sidebar */}
       <Sidebar activeItem="Organization Setup" />
 
@@ -174,7 +298,7 @@ export default function OrganizationSetupScreen() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {DEPARTMENTS_DATA.map((dept) => (
+                    {departments.map((dept) => (
                       <tr 
                         key={dept.id} 
                         className="hover:bg-slate-50 transition-colors"
@@ -208,11 +332,18 @@ export default function OrganizationSetupScreen() {
                             >
                               Edit
                             </button>
-                            <button
-                              className="text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors"
-                            >
-                              Deactivate
-                            </button>
+                            {dept.status === "Active" ? (
+                              <button
+                                onClick={() => handleDeactivate(dept.id)}
+                                className="text-xs font-semibold text-rose-600 hover:text-rose-700 transition-colors"
+                              >
+                                Deactivate
+                              </button>
+                            ) : (
+                              <span className="text-xs font-semibold text-slate-300 select-none">
+                                Deactivated
+                              </span>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -248,7 +379,7 @@ export default function OrganizationSetupScreen() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsModalOpen(false)}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm shadow-inner"
             />
 
             {/* Modal Body */}
@@ -283,9 +414,15 @@ export default function OrganizationSetupScreen() {
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500 bg-slate-50 focus:bg-white transition-colors"
+                    onBlur={() => setTouched((prev) => ({ ...prev, name: true }))}
+                    className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:border-emerald-500 bg-slate-50 focus:bg-white transition-colors ${
+                      touched.name && nameError ? "border-rose-300 focus:border-rose-500" : "border-slate-200"
+                    }`}
                     placeholder="e.g. Engineering"
                   />
+                  {touched.name && nameError && (
+                    <p className="text-rose-500 text-xs font-semibold mt-1">{nameError}</p>
+                  )}
                 </div>
 
                 {/* Department Head */}
@@ -297,9 +434,15 @@ export default function OrganizationSetupScreen() {
                     type="text"
                     value={formData.head}
                     onChange={(e) => setFormData({ ...formData, head: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500 bg-slate-50 focus:bg-white transition-colors"
+                    onBlur={() => setTouched((prev) => ({ ...prev, head: true }))}
+                    className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:border-emerald-500 bg-slate-50 focus:bg-white transition-colors ${
+                      touched.head && headError ? "border-rose-300 focus:border-rose-500" : "border-slate-200"
+                    }`}
                     placeholder="e.g. Aditi Rao"
                   />
+                  {touched.head && headError && (
+                    <p className="text-rose-500 text-xs font-semibold mt-1">{headError}</p>
+                  )}
                 </div>
 
                 {/* Parent Department */}
@@ -343,8 +486,13 @@ export default function OrganizationSetupScreen() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
+                  disabled={!isValid}
+                  onClick={handleSave}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                    isValid
+                      ? "bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+                      : "bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-200"
+                  }`}
                 >
                   Save
                 </button>
@@ -353,6 +501,24 @@ export default function OrganizationSetupScreen() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Toast notifications Container */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2.5 max-w-sm pointer-events-none">
+        <AnimatePresence>
+          {toasts.map((toast) => (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, y: 24, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, transition: { duration: 0.15 } }}
+              className="bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-2.5 text-sm font-semibold pointer-events-auto border border-slate-800"
+            >
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>{toast.message}</span>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
