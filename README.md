@@ -286,7 +286,7 @@ Then open [http://localhost:3000](http://localhost:3000) in your browser.
 
 | Field    | Value              |
 | :------- | :----------------- |
-| Email    | `demo@asset.com`   |
+| Email    | `demo@assetflow.com`   |
 |  Password | `password123`      |
 
 ### Available Scripts
