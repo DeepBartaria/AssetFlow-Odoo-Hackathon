@@ -12,7 +12,6 @@ import {
   Bell,
   QrCode,
   Lock,
- (Update sidebar and login page)
   LogOut
 } from "lucide-react";
 import Link from "next/link";
@@ -210,18 +209,7 @@ export default function Sidebar({ activeItem }: SidebarProps) {
           </div>
         )}
       </div>
-      <Link href="/login" className="pt-4 border-t border-slate-200 flex items-center gap-3 cursor-pointer group hover:bg-slate-100 p-2 -mx-2 rounded-lg transition-colors">
-        <div className="w-9 h-9 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center text-sm font-medium text-slate-700">
-          JD
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-odoo-600 transition-colors">Jane Doe</p>
-          <p className="text-xs text-slate-500 truncate">Employee</p>
-        </div>
-        <div className="text-slate-400 group-hover:text-rose-500 transition-colors" title="Log out">
-          <LogOut className="w-5 h-5" />
-        </div>
-      </Link>
+
     </aside>
   );
 }
