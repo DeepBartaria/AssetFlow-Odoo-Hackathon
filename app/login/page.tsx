@@ -22,19 +22,19 @@ export default function LoginScreen() {
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="w-full max-w-[440px] z-10 p-6"
+        className="w-full max-w-md z-10 p-4"
       >
-        <div className="bg-white p-8 sm:p-12 rounded-[2rem] shadow-[0_8px_40px_-12px_rgba(0,0,0,0.1)] border border-slate-100 relative overflow-hidden">
+        <div className="bg-white p-8 sm:p-10 rounded-[2rem] shadow-[0_8px_40px_-12px_rgba(0,0,0,0.1)] border border-slate-100 relative overflow-hidden">
           
           {/* Header */}
-          <div className="flex flex-col items-center text-center mb-10">
-            <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mb-6">
-              <LogIn className="w-7 h-7 text-emerald-600" />
+          <div className="flex flex-col items-center text-center mb-8">
+            <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center mb-5">
+              <LogIn className="w-6 h-6 text-emerald-600" />
             </div>
-            <h1 className="text-3xl font-extrabold text-slate-900 mb-3 tracking-tight">
+            <h1 className="text-2xl font-extrabold text-slate-900 mb-2 tracking-tight">
               {isLogin ? "Welcome back" : "Create an account"}
             </h1>
-            <p className="text-slate-500 text-sm px-2 font-medium">
+            <p className="text-slate-500 text-sm px-2 font-medium leading-relaxed">
               {isLogin 
                 ? "Manage your enterprise assets and resources seamlessly in one place." 
                 : "Register a new employee account to access the corporate directory."}
@@ -63,7 +63,7 @@ export default function LoginScreen() {
                   <input
                     type="text"
                     placeholder="Full Name"
-                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 pl-12 pr-4 py-3.5 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 transition-all outline-none"
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 pl-12 pr-4 py-3 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 transition-all outline-none"
                     required
                   />
                 </div>
@@ -76,7 +76,7 @@ export default function LoginScreen() {
                 <input
                   type="email"
                   placeholder="Email address"
-                  className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 pl-12 pr-4 py-3.5 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 transition-all outline-none"
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 pl-12 pr-4 py-3 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 transition-all outline-none"
                   required
                 />
               </div>
@@ -88,7 +88,7 @@ export default function LoginScreen() {
                 <input
                   type="password"
                   placeholder="Password"
-                  className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 pl-12 pr-12 py-3.5 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 transition-all outline-none"
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 pl-12 pr-12 py-3 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 transition-all outline-none"
                   required
                 />
                 <button type="button" className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
@@ -106,7 +106,7 @@ export default function LoginScreen() {
 
               <button
                 type="submit"
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-xl font-semibold text-sm transition-all shadow-lg shadow-slate-900/20 mt-2"
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white py-3.5 rounded-xl font-semibold text-sm transition-all shadow-lg shadow-slate-900/20 mt-4"
               >
                 {isLogin ? "Sign in to AssetFlow" : "Create Account"}
               </button>
@@ -115,7 +115,7 @@ export default function LoginScreen() {
 
           {/* Social Logins */}
           {isLogin && (
-            <div className="mt-10">
+            <div className="mt-8">
               <div className="relative flex items-center py-2">
                 <div className="flex-grow border-t border-slate-100"></div>
                 <span className="flex-shrink-0 mx-4 text-xs font-semibold uppercase tracking-wider text-slate-400">Or continue with</span>
@@ -134,7 +134,7 @@ export default function LoginScreen() {
           )}
 
           {/* Toggle between login and signup */}
-          <div className="mt-10 text-center text-sm font-medium text-slate-500">
+          <div className="mt-8 text-center text-sm font-medium text-slate-500">
             {isLogin ? (
                <span>
                  New to AssetFlow?{" "}

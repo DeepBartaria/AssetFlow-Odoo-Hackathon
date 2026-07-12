@@ -1,348 +1,123 @@
-# 🚀 AssetFlow - Enterprise Asset & Resource Management System
+# AssetFlow - Enterprise Asset & Resource Management System
 
-AssetFlow is a modern Enterprise Asset & Resource Management System developed for the **Odoo Hackathon**. It helps organizations efficiently manage physical assets, shared resources, maintenance workflows, audits, and employee allocations through a centralized platform.
+AssetFlow is a modern Enterprise Asset & Resource Management System developed to simplify and digitize how organizations track, allocate, and maintain their physical assets and shared resources through a centralized ERP platform. 
 
----
-
-## 📌 Overview
-
-Managing company assets manually using spreadsheets and paper records often leads to:
-
-- Asset misplacement
-- Double allocation
-- Maintenance delays
-- Booking conflicts
-- Lack of operational visibility
-
-AssetFlow digitizes the complete asset lifecycle and provides a centralized dashboard for managing assets across departments.
+This platform is designed to be industry-agnostic—whether an organization manages IT equipment, furniture, corporate vehicles, or shared facilities (such as offices, schools, hospitals, or factories), AssetFlow provides the structured workflows necessary to eliminate manual tracking inefficiencies.
 
 ---
 
-## ✨ Features
+## Overview and Problem Statement
 
-### 🔐 Authentication
+Organizations relying on manual tracking (spreadsheets, paper logs, ad-hoc emails) often suffer from:
+- Asset misplacement and lack of operational visibility.
+- Double-allocation of resources and booking conflicts.
+- Unstructured maintenance routing leading to delayed repairs.
+- Inaccurate audits and unflagged discrepancies.
 
-- Secure Login
-- User Registration
-- Role-Based Access Control (RBAC)
-
-### 👥 User Roles
-
-- Admin
-- Asset Manager
-- Department Head
-- Employee
+AssetFlow resolves these issues by delivering core ERP functionality. It focuses on clean architecture, secure role-based workflows, and scalable module design without touching purchasing, invoicing, or accounting concerns. It provides real-time visibility into who holds an asset, where it is located, and its current condition.
 
 ---
 
-## 🏢 Organization Setup
+## Core System Modules
 
-- Department Management
-- Employee Directory
-- Asset Categories
-- Role Assignment
+### 1. Organization Setup
+The foundation of the ERP system requires structured master data:
+- **Department Management:** Create, edit, and deactivate departments. Assign Department Heads and establish hierarchical relationships (Parent Departments).
+- **Asset Categories:** Define global categories (e.g., Electronics, Furniture, Vehicles) and configure optional category-specific metadata fields.
+- **Employee Directory:** Centralized record of employee data. Administrators utilize this directory to promote standard employees to specialized roles (Department Head, Asset Manager).
 
----
+### 2. Asset Registration & Directory
+A centralized hub for searching and tracking organizational assets:
+- **Registration:** Capture detailed asset information including auto-generated Asset Tags, Serial Numbers, Acquisition Data, Condition, and Location.
+- **Lifecycle Tracking:** Assets exist within a strict state machine. Valid states include: Available, Allocated, Reserved, Under Maintenance, Lost, Retired, Disposed.
+- **Historical Data:** Maintain an immutable ledger of an asset's allocation history and maintenance records.
 
-## 💻 Asset Management
+### 3. Asset Allocation & Transfer
+Manage custody and enforce explicit conflict resolution rules:
+- **Allocation:** Assign assets to employees or departments with an expected return date.
+- **Conflict Prevention:** The system strictly prevents double-allocation. If an asset is currently held, users are routed to a structured "Transfer Request" workflow rather than allowing an override.
+- **Return Workflow:** Process asset returns, capture check-in condition notes, and automatically revert the asset status back to "Available". Overdue returns trigger automated system alerts.
 
-- Register Assets
-- Auto Generated Asset ID
-- Asset Categories
-- Asset Images
-- Asset Location
-- Asset Status Tracking
-- Asset Search & Filters
-- Asset History
+### 4. Resource Booking
+Time-slot booking for shared organizational resources:
+- **Calendar Integration:** View existing bookings for shared assets (e.g., meeting rooms, shared fleet vehicles).
+- **Overlap Validation:** The system strictly validates time-slots and automatically rejects overlapping booking requests.
+- **Lifecycle:** Manage bookings through states (Upcoming, Ongoing, Completed, Cancelled) with automated pre-booking reminders.
 
-Asset Status includes:
+### 5. Maintenance Management
+Route repair requests through a formal approval hierarchy before work commences:
+- **Request Workflows:** Users raise requests detailing the issue and priority.
+- **Approval Chain:** Requests move from Pending to Approved/Rejected (by Asset Managers), followed by Technician Assignment, In-Progress, and Resolution.
+- **Automated State Changes:** Asset status automatically shifts to "Under Maintenance" upon approval, and reverts to "Available" once the ticket is resolved.
 
-- Available
-- Allocated
-- Reserved
-- Under Maintenance
-- Lost
-- Retired
-- Disposed
+### 6. Asset Audit Cycle
+Execute structured, cycle-based verification rather than ad-hoc checks:
+- **Cycle Generation:** Define an audit scope by department, location, and date range.
+- **Verification:** Assigned auditors physically verify items, marking them as Verified, Missing, or Damaged.
+- **Discrepancy Reporting:** The system auto-generates discrepancy reports for flagged items. Closing the audit cycle securely locks the records and updates affected asset statuses accordingly (e.g., transitioning missing items to "Lost").
 
----
-
-## 🔄 Asset Allocation
-
-- Allocate Asset
-- Transfer Asset
-- Return Asset
-- Conflict Detection
-- Prevent Double Allocation
-- Expected Return Date
-
----
-
-## 📅 Resource Booking
-
-Book shared resources like:
-
-- Meeting Rooms
-- Vehicles
-- Projectors
-- Equipment
-
-Features:
-
-- Calendar View
-- Time Slot Booking
-- Overlap Validation
-- Booking Reminder
-- Cancel / Reschedule Booking
+### 7. Dashboards, Reports, & Notifications
+Provide operational intelligence across all organizational tiers:
+- **KPI Dashboards:** Real-time visibility into Assets Available, Overdue Returns, Maintenance Loads, and Active Bookings.
+- **Analytics:** Exportable reports detailing asset utilization trends, maintenance frequency, and resource booking heatmaps.
+- **Activity Logging:** A comprehensive audit log tracks all administrative and employee actions to ensure absolute accountability.
 
 ---
 
-## 🛠 Maintenance Management
+## Role-Based Access Control (RBAC)
 
-Maintenance Workflow
+The system enforces strict role boundaries:
 
-```
-Pending
-    ↓
-Approved
-    ↓
-Technician Assigned
-    ↓
-In Progress
-    ↓
-Resolved
-```
-
-Features
-
-- Raise Maintenance Request
-- Attach Images
-- Priority Levels
-- Technician Assignment
-- Maintenance History
+- **Administrator:** Provisions the master organization data (departments, categories) and assigns elevated roles from the standard employee directory.
+- **Asset Manager:** Responsible for registering and allocating assets, approving transfers, authorizing maintenance requests, and overseeing audit discrepancy resolutions.
+- **Department Head:** Possesses visibility over their department's allocated assets, approves internal transfer requests, and books shared resources on behalf of their department.
+- **Employee:** Can view assets assigned to them, book shared resources, raise maintenance requests, and initiate transfer or return workflows.
 
 ---
 
-## ✅ Asset Audit
-
-Audit Workflow
-
-- Create Audit Cycle
-- Assign Auditors
-- Verify Assets
-- Mark Assets as:
-  - Verified
-  - Missing
-  - Damaged
-- Auto Generate Discrepancy Report
-- Close Audit Cycle
-
----
-
-## 📊 Dashboard
-
-Dashboard provides:
-
-- Assets Available
-- Assets Allocated
-- Active Bookings
-- Pending Transfers
-- Maintenance Requests
-- Upcoming Returns
-- Notifications
-
----
-
-## 📈 Reports
-
-Generate reports for:
-
-- Asset Utilization
-- Maintenance History
-- Department Allocation
-- Resource Booking
-- Audit Reports
-
-Export formats:
-
-- PDF
-- Excel
-- CSV
-
----
-
-## 🔔 Notifications
-
-Receive notifications for:
-
-- Asset Assigned
-- Transfer Approved
-- Booking Confirmed
-- Booking Reminder
-- Maintenance Approved
-- Maintenance Completed
-- Audit Completed
-- Overdue Returns
-
----
-
-## 🏗 Tech Stack
+## Technical Architecture
 
 ### Frontend
-
-- React.js
+- React.js & Next.js (App Router)
 - TypeScript
 - Tailwind CSS
-- Next.js
+- Framer Motion
 
-### Backend
-
-- Node.js
-- Express.js
-
-### Database
-
+### Backend & Infrastructure
+- Node.js & Express.js architecture principles (Next.js Server Actions/APIs)
 - MongoDB
-
-### Authentication
-
 - JWT Authentication
 
-### Version Control
+---
 
-- Git
-- GitHub
+## Local Development Setup
+
+To run the system locally for development or demonstration purposes:
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/AssetFlow.git
+   ```
+
+2. Navigate to the project directory:
+   ```bash
+   cd AssetFlow
+   ```
+
+3. Install all dependencies:
+   ```bash
+   npm install
+   ```
+
+4. Start the local development server:
+   ```bash
+   npm run dev
+   ```
+
+5. Access the application at `http://localhost:3000`.
 
 ---
 
-## 📂 Project Structure
+## License & Acknowledgements
 
-```
-AssetFlow/
-│
-├── app/
-│   ├── dashboard/
-│   ├── login/
-│   ├── assets/
-│   ├── allocation/
-│   ├── maintenance/
-│   ├── booking/
-│   ├── audit/
-│   └── reports/
-│
-├── components/
-│
-├── lib/
-│
-├── models/
-│
-├── public/
-│
-├── styles/
-│
-├── package.json
-└── README.md
-```
-
----
-
-## ⚙ Installation
-
-Clone the repository
-
-```bash
-git clone https://github.com/yourusername/AssetFlow.git
-```
-
-Move into the project directory
-
-```bash
-cd AssetFlow
-```
-
-Install dependencies
-
-```bash
-npm install
-```
-
-Run the development server
-
-```bash
-npm run dev
-```
-
-Open your browser
-
-```
-http://localhost:3000
-```
-
----
-
-## 📌 Business Workflow
-
-```
-Admin
-    │
-    ▼
-Create Departments
-    │
-    ▼
-Register Employees
-    │
-    ▼
-Register Assets
-    │
-    ▼
-Allocate Assets
-    │
-    ▼
-Book Shared Resources
-    │
-    ▼
-Raise Maintenance Request
-    │
-    ▼
-Approve Maintenance
-    │
-    ▼
-Conduct Asset Audit
-    │
-    ▼
-Generate Reports
-```
-
----
-
-## 🎯 Future Enhancements
-
-- QR Code Asset Tracking
-- Barcode Scanner
-- Email Notifications
-- Mobile Application
-- AI Asset Recommendation
-- Predictive Maintenance
-- OCR Document Upload
-- Interactive Analytics Dashboard
-
----
-
-## 👨‍💻 Team Members
-
-- Member 1 – Authentication & Organization Setup
-- Member 2 – Asset Management
-- Member 3 – Allocation & Resource Booking
-- Member 4 – Maintenance, Audit & Reports
-
----
-
-## 📄 License
-
-This project was developed for the **Odoo Hackathon** and is intended for educational and demonstration purposes.
-
----
-
-## ⭐ Acknowledgements
-
-Developed as part of the **Odoo Hackathon** to demonstrate an enterprise-grade Asset & Resource Management System with modern web technologies.
+Developed to demonstrate an enterprise-grade Asset & Resource Management System with modern web technologies, showcasing scalable ERP architecture and secure role-based workflows.
