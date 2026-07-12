@@ -34,6 +34,12 @@ Use the following demo account to explore the platform without setting up your o
 |  Email    | `demo@assetflow.com`   |
 |  Password | `password123`      |
 
+For admin
+| Field    | Value              |
+| :------- | :----------------- |
+|  Email    | `admin@assetflow.com`   |
+|  Password | `admin123`      |
+
 > Sign in at `/login` and you'll be taken straight to the dashboard.
 
 ---
@@ -335,6 +341,8 @@ AssetFlow-Odoo-Hackathon/
 ```
 
 ---
+Scanner to check 
+<img width="400" height="400" alt="image" src="https://github.com/user-attachments/assets/283c94f5-31d9-4d1b-bf0e-12862ce408e6" />
 
 ## Future Enhancements
 
