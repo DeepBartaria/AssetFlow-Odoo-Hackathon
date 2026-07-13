@@ -258,7 +258,7 @@ Reports & Analytics
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/AssetFlow.git
+git clone https://github.com/DeepBartaria/AssetFlow-Odoo-Hackathon.git
 cd AssetFlow
 ```
 
